@@ -1,9 +1,5 @@
 package com.example.parcel_delivery.models.entities;
 
-import java.util.Set;
-
-import com.example.parcel_delivery.models.enums.DriverType;
-
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -13,38 +9,50 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
-import jakarta.persistence.OneToMany;
-import jakarta.persistence.OneToOne;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.ToString;
+import java.time.LocalDateTime;
+
+import com.example.parcel_delivery.models.enums.NotificationType;
+
 
 @Entity
-@Table(name = "drivers")
+@Table(name = "notifications")
 @NoArgsConstructor
 @AllArgsConstructor
 @Getter
 @Setter
 @ToString
-public class Driver {
-
+public class Notification {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", referencedColumnName = "id")
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = false)
     private User user;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "parcel_id", nullable = false)
+    private Parcel parcel;
+
+    @Column(nullable = false)
+    private String message;
+
+    @Column(nullable = false)
+    private Boolean read = false;
+    
+    @Column(nullable = false, updatable = false)
+    private LocalDateTime createdAt;
+
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private DriverType driverType;
+    private NotificationType type; 
 
-     @OneToMany(mappedBy = "driver")
-    private Set<Parcel> assignedParcels;
-
-    
 }
