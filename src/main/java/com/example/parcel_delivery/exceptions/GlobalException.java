@@ -43,8 +43,8 @@ public class GlobalException extends ResponseEntityExceptionHandler {
      * Handles custom APIException.
      * Returns a structured ErrorRes.
      */
-    @ExceptionHandler(PrcelDeliveryExceptionHandler.class)
-    public ResponseEntity<ErrorRes> handleAPIException(PrcelDeliveryExceptionHandler ex) {
+    @ExceptionHandler(TendrilExExceptionHandler.class)
+    public ResponseEntity<ErrorRes> handleAPIException(TendrilExExceptionHandler ex) {
         ErrorRes ErrorRes = new ErrorRes();
         ErrorRes.setStatus(ex.getStatus().value());
         // ErrorRes.setMessage(ex.getMessage());

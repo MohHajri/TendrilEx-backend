@@ -59,14 +59,10 @@ public class Parcel {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private ParcelStatus status;
-
+    
     @ManyToOne
-    @JoinColumn(name = "sender_id", referencedColumnName = "id")
-    private Sender sender;
-
-    @ManyToOne
-    @JoinColumn(name = "recipient_id", referencedColumnName = "id")
-    private Recipient recipient;
+    @JoinColumn(name = "customer_id", referencedColumnName = "id")
+    private Customer customer;
 
     @ManyToOne
     @JoinColumn(name = "driver_id", referencedColumnName = "id")

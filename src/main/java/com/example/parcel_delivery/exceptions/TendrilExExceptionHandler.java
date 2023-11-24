@@ -10,15 +10,15 @@ import org.springframework.http.HttpStatus;
 @Setter
 @ToString
 @NoArgsConstructor
-public class PrcelDeliveryExceptionHandler extends RuntimeException {
+public class TendrilExExceptionHandler extends RuntimeException {
 
     private HttpStatus status;
 
-    public PrcelDeliveryExceptionHandler(String message) {
+    public TendrilExExceptionHandler(String message) {
         super(message);
     }
 
-    public PrcelDeliveryExceptionHandler(HttpStatus status, String message) {
+    public TendrilExExceptionHandler(HttpStatus status, String message) {
         super(message);
         this.status = status;
     }

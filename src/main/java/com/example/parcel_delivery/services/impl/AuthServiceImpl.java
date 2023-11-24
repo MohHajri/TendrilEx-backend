@@ -1,18 +1,24 @@
 package com.example.parcel_delivery.services.impl;
 
-import com.example.parcel_delivery.exceptions.PrcelDeliveryExceptionHandler;
+import com.example.parcel_delivery.exceptions.TendrilExExceptionHandler;
 import com.example.parcel_delivery.models.dtos.requests.LoginReqDTO;
 import com.example.parcel_delivery.models.dtos.requests.RegisterReqDTO;
 import com.example.parcel_delivery.models.dtos.responses.LoginResDTO;
 import com.example.parcel_delivery.models.dtos.responses.SignupResDTO;
+import com.example.parcel_delivery.models.entities.Customer;
+import com.example.parcel_delivery.models.entities.Driver;
 import com.example.parcel_delivery.models.entities.Role;
 import com.example.parcel_delivery.models.entities.User;
+import com.example.parcel_delivery.models.mappers.UserMapper;
+import com.example.parcel_delivery.repositories.CustomerRepo;
+import com.example.parcel_delivery.repositories.DriverRepo;
 import com.example.parcel_delivery.repositories.RoleRepo;
 import com.example.parcel_delivery.repositories.UserRepo;
 import com.example.parcel_delivery.services.AuthService;
 import com.example.parcel_delivery.services.CustomUserDetailService;
 import com.example.parcel_delivery.utils.JWTUtils;
 
+import java.util.Optional;
 import java.util.Set;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -47,6 +53,15 @@ public class AuthServiceImpl implements AuthService {
     @Autowired
     private CustomUserDetailService customUserDetailService;
 
+    @Autowired
+    private DriverRepo driverRepository;
+
+    @Autowired
+    private CustomerRepo customerRepository;
+
+    @Autowired
+    private UserMapper userMapper;
+
     @PostConstruct
     public void init() {
         if (roleRepository.count() == 0) {
@@ -63,19 +78,42 @@ public class AuthServiceImpl implements AuthService {
     @Override
     public SignupResDTO registerUser(RegisterReqDTO registerDto) {
         if (userRepository.findByUsername(registerDto.getUsername()).isPresent()) {
-            throw new PrcelDeliveryExceptionHandler(HttpStatus.CONFLICT, "A user with this username already exists");
+            throw new TendrilExExceptionHandler(HttpStatus.CONFLICT, "A user with this username already exists");
         }
         // create new user
         User newUser = new User();
-        newUser.setUsername(registerDto.getUsername());
+        // newUser.setUsername(registerDto.getUsername());
+        newUser = userMapper.toUserEntity(registerDto);
         newUser.setPassword(passwordEncoder.encode(registerDto.getPassword()));
 
         // Assign default role to new user
         Role userRole = roleRepository.findByName("ROLE_USER")
-                .orElseThrow(() -> new PrcelDeliveryExceptionHandler(HttpStatus.NOT_FOUND, "Role is not found."));
+                .orElseThrow(() -> new TendrilExExceptionHandler(HttpStatus.NOT_FOUND, "Role is not found."));
         newUser.setRoles(Set.of(userRole));
 
         userRepository.save(newUser);
+
+        switch(registerDto.getRegisterRole()) {
+            case DRIVER:
+                Optional<Driver> existingDriver = driverRepository.findByUserId(newUser.getId());
+                if(!existingDriver.isPresent()) {
+                    Driver newDriver = new Driver();
+                    newDriver.setUser(newUser);
+                    driverRepository.save(newDriver);
+                }
+
+                break;
+
+            case CUSTOMER:
+               Optional <Customer> existingCustomer = customerRepository.findByUserId(newUser.getId());
+               if(!existingCustomer.isPresent()) {
+                    Customer newCustomer = new Customer();
+                    newCustomer.setUser(newUser);
+                    customerRepository.save(newCustomer);
+                }
+
+                break;
+         }
 
         return SignupResDTO.builder()
                 .message("User registered successfully")

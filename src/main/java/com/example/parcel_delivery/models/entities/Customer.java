@@ -18,13 +18,13 @@ import lombok.Setter;
 import lombok.ToString;
 
 @Entity
-@Table(name = "senders")
+@Table(name = "customers")
 @NoArgsConstructor
 @AllArgsConstructor
 @Getter
 @Setter
 @ToString
-public class Sender {
+public class Customer {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -34,8 +34,7 @@ public class Sender {
     @JoinColumn(name = "user_id", referencedColumnName = "id")
     private User user;
 
-    @OneToMany(mappedBy = "sender")
-    private Set<Parcel> sentParcels;
-
+    @OneToMany(mappedBy = "customer")
+    private Set<Parcel> parcels;
     
 }

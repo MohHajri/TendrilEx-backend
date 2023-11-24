@@ -1,5 +1,10 @@
 package com.example.parcel_delivery.models.dtos.requests;
 
+import com.example.parcel_delivery.models.enums.RegisterRole;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.validation.constraints.NotBlank;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -21,4 +26,11 @@ public class RegisterReqDTO {
 
     @NotBlank(message = "surename cannot be blank")
     private String lastname;
+
+    @NotBlank(message = "contact No. cannot be blank")
+    private String contactNumber;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "register_role")
+    private  RegisterRole registerRole;
 }

@@ -5,7 +5,6 @@ import java.util.Set;
 
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -30,7 +29,6 @@ public class User {
     @NotBlank(message = "Password is required")
     private String password;
     
-    @NotNull(message = "Contact number is required")
     private String contactNumber;
 
     private String firstname;
@@ -40,10 +38,7 @@ public class User {
     private Driver driver;
 
     @OneToOne(mappedBy = "user", cascade = CascadeType.ALL)
-    private Recipient recipient;
-
-    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL)
-    private Sender sender;
+    private Customer customer;
 
     @ManyToMany(fetch = FetchType.EAGER, cascade = CascadeType.ALL)
     @JoinTable(name = "users_roles", joinColumns = @JoinColumn(name = "user_id", referencedColumnName = "id"), inverseJoinColumns = @JoinColumn(name = "role_id", referencedColumnName = "id"))

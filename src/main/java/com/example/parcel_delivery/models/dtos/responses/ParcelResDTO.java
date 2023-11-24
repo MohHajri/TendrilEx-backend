@@ -8,12 +8,12 @@ public class ParcelResDTO {
 
     private Long parcelId;
     private String parcelStatus;
-    private String parcelSender;
-    private String parcelRecipient;
-    private String parcelAtCabinetDate;
-    private String parcelPickupDate;
-    private String parcelDeliveryDate;
+    private String parcelSenderName;
+    private String parcelAssociatedStorage;
+    private String parcelRecipientName;
+    private String parcelPickupDateAndTime;
+    private String parcelDeliveryDateAndTime;
     private String parcelLockerLocation;
-    private String CabinetCode;   
+    private String parcelCode;   
 
 }
