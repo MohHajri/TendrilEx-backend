@@ -27,8 +27,8 @@ public class RegisterReqDTO {
     @NotBlank(message = "surename cannot be blank")
     private String lastname;
 
-    @NotBlank(message = "contact No. cannot be blank")
-    private String contactNumber;
+    @NotBlank(message = "phone No. cannot be blank")
+    private String phoneNumber;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "register_role")

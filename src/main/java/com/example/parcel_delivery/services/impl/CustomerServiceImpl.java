@@ -1,5 +1,7 @@
 package com.example.parcel_delivery.services.impl;
 
+import java.util.Optional;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -43,5 +45,10 @@ public class CustomerServiceImpl implements CustomerService {
                         "Customer not found with user id: " + authUserId));
                     
                     }
+
+    @Override
+    public Optional<Customer> findCustomerByPhoneNumber(String phonenNumber) {
+        return customerRepository.findByUserPhoneNumber(phonenNumber);
+    }
     
 }

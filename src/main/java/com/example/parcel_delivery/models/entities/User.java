@@ -3,6 +3,10 @@ package com.example.parcel_delivery.models.entities;
 import java.util.HashSet;
 import java.util.Set;
 
+import org.locationtech.jts.geom.Point;
+
+import com.fasterxml.jackson.annotation.JsonManagedReference;
+
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import lombok.AllArgsConstructor;
@@ -29,15 +33,19 @@ public class User {
     @NotBlank(message = "Password is required")
     private String password;
     
-    private String contactNumber;
+    private String phoneNumber;
 
     private String firstname;
     private String lastname;
+
+    @Column(name = "location_point", columnDefinition = "geometry(Point,4326)")
+    private Point userPoint;
 
     @OneToOne(mappedBy = "user", cascade = CascadeType.ALL)
     private Driver driver;
 
     @OneToOne(mappedBy = "user", cascade = CascadeType.ALL)
+    @JsonManagedReference
     private Customer customer;
 
     @ManyToMany(fetch = FetchType.EAGER, cascade = CascadeType.ALL)

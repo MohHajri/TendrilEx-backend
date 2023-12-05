@@ -82,7 +82,6 @@ public class AuthServiceImpl implements AuthService {
         }
         // create new user
         User newUser = new User();
-        // newUser.setUsername(registerDto.getUsername());
         newUser = userMapper.toUserEntity(registerDto);
         newUser.setPassword(passwordEncoder.encode(registerDto.getPassword()));
 

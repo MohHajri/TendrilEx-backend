@@ -1,7 +1,6 @@
 package com.example.parcel_delivery.models.entities;
 
 import java.util.Set;
-
 import com.example.parcel_delivery.models.enums.DriverType;
 
 import jakarta.persistence.Column;

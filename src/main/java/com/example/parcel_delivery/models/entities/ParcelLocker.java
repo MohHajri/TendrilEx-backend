@@ -14,30 +14,32 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.ToString;
+import org.locationtech.jts.geom.Point;
+
+import com.fasterxml.jackson.annotation.JsonManagedReference;
+
 
 @Entity
-@Table(name = "parcel_locker_locations")
+@Table(name = "parcel_lockers")
 @NoArgsConstructor
 @AllArgsConstructor
 @Getter
 @Setter
 @ToString
-public class ParcelLockerLocation {
+public class ParcelLocker {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, unique = true)
-    private String locationCode;
-
     @Column(nullable = false)
     private String name;
 
-    @Column(nullable = false)
-    private String address;
+    @Column(name = "location_point", columnDefinition = "geometry(Point,4326)")
+    private Point lockerPoint;
 
     @OneToMany(mappedBy = "lockerLocation")
+    @JsonManagedReference
     private Set<Cabinet> cabinets;
     
 }

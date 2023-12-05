@@ -7,13 +7,14 @@ public class ParcelResDTO {
 
 
     private Long parcelId;
-    private String parcelStatus;
-    private String parcelSenderName;
-    private String parcelAssociatedStorage;
-    private String parcelRecipientName;
-    private String parcelPickupDateAndTime;
-    private String parcelDeliveryDateAndTime;
-    private String parcelLockerLocation;
-    private String parcelCode;   
+    private String status;
+    private String senderName;
+    // private String associatedStorage;
+    private String recipientName;
+    // private String pickupDateAndTime;
+    // private String parcelDeliveryDateAndTime;
+    private String parcelLockerLocationPoint;
+    private String transactionCode;   
+    private String codeExpiryDate;
 
 }

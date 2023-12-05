@@ -1,5 +1,7 @@
 package com.example.parcel_delivery.services;
 
+import java.util.Optional;
+
 import com.example.parcel_delivery.models.entities.Customer;
 
 public interface CustomerService {
@@ -9,5 +11,7 @@ public interface CustomerService {
     Customer getCustomerByUserId(Long userId);
 
     Customer getCustomerByAuthenticatedUser();
+
+    Optional<Customer> findCustomerByPhoneNumber(String recipientPhone);
     
 }

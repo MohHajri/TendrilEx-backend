@@ -2,7 +2,7 @@ package com.example.parcel_delivery.models.entities;
 
 
 import com.example.parcel_delivery.models.enums.CabinetStatus;
-
+import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -39,15 +39,14 @@ public class Cabinet {
     private CabinetStatus status;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "parcel_locker_location_id", referencedColumnName = "id")
-    private ParcelLockerLocation lockerLocation;
+    @JoinColumn(name = "parcel_locker_id", referencedColumnName = "id")
+    @JsonBackReference
+    private ParcelLocker lockerLocation;
 
     @OneToOne
     @JoinColumn(name = "parcel_id", referencedColumnName = "id")
     private Parcel currentParcel;
 
-
-    //cabinet size and dimensions
     @Column(nullable = false)
     private Double width;
 
