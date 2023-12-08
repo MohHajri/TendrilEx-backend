@@ -45,6 +45,7 @@ public class Cabinet {
 
     @OneToOne
     @JoinColumn(name = "parcel_id", referencedColumnName = "id")
+    @JsonBackReference
     private Parcel currentParcel;
 
     @Column(nullable = false)

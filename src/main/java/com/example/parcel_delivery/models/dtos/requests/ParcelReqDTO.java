@@ -26,6 +26,10 @@ public class ParcelReqDTO {
     @NotBlank(message = "Sender phone is mandatory")
     @Pattern(regexp = "^04\\d{7,8}$|^050\\d{6,7}$", message = "Invalid Finnish mobile phone number.")
     private String senderPhoneNo;
+    
+    @NotBlank(message = "Recipient email is mandatory")
+    @Pattern(regexp = "^[A-Za-z0-9+_.-]+@(.+)$", message = "Invalid email format")
+    private String senderEmail;
 
     @NotBlank(message = "Recipient name is mandatory")
     private String recipientName;
@@ -43,6 +47,10 @@ public class ParcelReqDTO {
     @NotBlank(message = "recipient phone is mandatory")
     @Pattern(regexp = "^04\\d{7,8}$|^050\\d{6,7}$", message = "Invalid Finnish mobile phone number.")
     private String recipientPhoneNo;
+
+    @NotBlank(message = "Recipient email is mandatory")
+    @Pattern(regexp = "^[A-Za-z0-9+_.-]+@(.+)$", message = "Invalid email format")
+    private String recipientEmail;
 
     @NotBlank(message = "Parcel weight is mandatory")
     @DecimalMin(value = "0.1", message = "Weight must be greater than 0.1")

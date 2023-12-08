@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 0;
+        }
+        .email-container {
+            max-width: 600px;
+            margin: 20px auto;
+            background-color: #ffffff;
+            border: 1px solid #dddddd;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        .email-header {
+            background-color: #007bff;
+            color: #ffffff;
+            padding: 10px;
+            text-align: center;
+        }
+        .email-body {
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .email-footer {
+            background-color: #f8f8f8;
+            text-align: center;
+            padding: 10px;
+            font-size: 12px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <div class="email-header">
+            <h1>Parcel Delivery Notification</h1>
+        </div>
+        <div class="email-body">
+            <p>Hello <strong th:text="${name}"> !</strong>,</p>
+            <p>Your parcel status is: <strong th:text="${status}"></strong></p>
+            <p>Use this code to open your locker cabinet: <strong th:text="${transactionCode}"></strong></p>
+            <p>If you have any questions, please don't hesitate to contact us.</p>
+        </div>
+        <div class="email-footer">
+            &copy; 2023 TendrilEx Parcel Delivery Service. All rights reserved.
+        </div>
+    </div>
+</body>
+</html>

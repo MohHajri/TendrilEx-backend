@@ -5,6 +5,7 @@ import java.util.Set;
 
 import org.locationtech.jts.geom.Point;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
 
 import jakarta.persistence.*;
@@ -35,10 +36,13 @@ public class User {
     
     private String phoneNumber;
 
+    private String email;
+
     private String firstname;
     private String lastname;
 
     @Column(name = "location_point", columnDefinition = "geometry(Point,4326)")
+    @JsonIgnore
     private Point userPoint;
 
     @OneToOne(mappedBy = "user", cascade = CascadeType.ALL)
@@ -47,6 +51,11 @@ public class User {
     @OneToOne(mappedBy = "user", cascade = CascadeType.ALL)
     @JsonManagedReference
     private Customer customer;
+
+    //notification relation
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL)
+    @JsonManagedReference
+    private Set<Notification> notifications = new HashSet<>();
 
     @ManyToMany(fetch = FetchType.EAGER, cascade = CascadeType.ALL)
     @JoinTable(name = "users_roles", joinColumns = @JoinColumn(name = "user_id", referencedColumnName = "id"), inverseJoinColumns = @JoinColumn(name = "role_id", referencedColumnName = "id"))

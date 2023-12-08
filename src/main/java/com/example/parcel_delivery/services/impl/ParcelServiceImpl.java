@@ -9,6 +9,7 @@ import com.example.parcel_delivery.models.dtos.requests.ParcelReqDTO;
 import com.example.parcel_delivery.models.entities.Cabinet;
 import com.example.parcel_delivery.models.entities.Customer;
 import com.example.parcel_delivery.models.entities.Parcel;
+import com.example.parcel_delivery.models.enums.NotificationType;
 import com.example.parcel_delivery.models.enums.ParcelStatus;
 import com.example.parcel_delivery.repositories.ParcelRepo;
 import com.example.parcel_delivery.services.CabinetService;
@@ -77,6 +78,7 @@ public class ParcelServiceImpl implements ParcelService {
         parcel.setUnregisteredRecipientName(parcelReqDTO.getRecipientName());
         parcel.setUnregisteredRecipientPhone(parcelReqDTO.getRecipientPhoneNo());
         parcel.setUnregisteredRecipientAddress(parcelReqDTO.getRecipientAddress());
+        parcel.setUnregisteredRecipientEmail(parcelReqDTO.getRecipientEmail());
         parcel.setIsRecipientRegistered(isRecipientRegistered);
         parcel.setTransactionCode(transactionCode);
         parcel.setTransactionCodeValidUntil(LocalDateTime.now().plusDays(12));
@@ -87,6 +89,10 @@ public class ParcelServiceImpl implements ParcelService {
         parcel.setIdempotencyKey(parcelReqDTO.getIdempotencyKey());
         parcel.setIdempotencyKeyCreatedAt(LocalDateTime.now());
     
+        //save recipient if registered
+        if (recipient != null) {
+            parcel.setRecipient(recipient);
+        }
 
         //set parcel in cabinet
         reservedCabinet.setCurrentParcel(parcel);
@@ -95,13 +101,28 @@ public class ParcelServiceImpl implements ParcelService {
         Parcel savedParcel = parcelRepository.save(parcel);
 
         // Send notifications
-        if (recipient != null) {
+        if (recipient != null && recipient.getUser() != null) {
             // Registered recipient
-            notificationService.sendInAppNotification(savedParcel);
-            notificationService.sendSmsNotification(parcelReqDTO.getRecipientPhoneNo(), transactionCode);
+            notificationService.sendInAppNotification(
+                    savedParcel,
+                    NotificationType.NEW_PARCEL,
+                    "You have a new parcel",
+                    recipient.getUser());
+                    
+            notificationService.sendEmailNotification(
+                    recipient.getUser().getEmail(),
+                    transactionCode,
+                    "New Parcel",
+                    recipient.getUser().getFirstname(),
+                    ParcelStatus.SENT);
         } else {
             // Unregistered recipient
-            notificationService.sendSmsNotification(parcelReqDTO.getRecipientPhoneNo(), transactionCode);
+            notificationService.sendEmailNotification(
+                    parcelReqDTO.getRecipientEmail(),
+                    transactionCode,
+                    "New Parcel",
+                    parcelReqDTO.getRecipientName(),
+                    ParcelStatus.SENT);
         }
 
         return savedParcel;

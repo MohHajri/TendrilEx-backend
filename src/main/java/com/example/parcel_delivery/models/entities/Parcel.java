@@ -2,8 +2,12 @@ package com.example.parcel_delivery.models.entities;
 
 import java.time.LocalDateTime;
 
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
+
 import com.example.parcel_delivery.models.enums.ParcelStatus;
 import com.fasterxml.jackson.annotation.JsonBackReference;
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
@@ -58,6 +62,9 @@ public class Parcel {
     private String unregisteredRecipientPhone;
 
     @Column
+    private String unregisteredRecipientEmail;
+
+    @Column
     private String unregisteredRecipientAddress;
 
     @Column
@@ -91,6 +98,7 @@ public class Parcel {
 
     @OneToOne(cascade = CascadeType.ALL)
     @JoinColumn(name = "cabinet_id", referencedColumnName = "id")
+    @JsonManagedReference
     private Cabinet cabinet;
 
     @ManyToOne
@@ -101,13 +109,16 @@ public class Parcel {
     @JoinColumn(name = "selected_locker_location_id")
     private ParcelLocker selectedLockerLocation;
     
+    @CreationTimestamp
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
-    @Column(updatable = false)
+    @UpdateTimestamp
+    @Column(updatable = true)
     private LocalDateTime updatedAt;
 
-    @Column(updatable = false)
+    @UpdateTimestamp
+    @Column(updatable = true)
     private LocalDateTime statusUpdatedAt;
 
     @Column

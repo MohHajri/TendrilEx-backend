@@ -30,6 +30,9 @@ public class RegisterReqDTO {
     @NotBlank(message = "phone No. cannot be blank")
     private String phoneNumber;
 
+    @NotBlank(message = "email cannot be blank")
+    private String email;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "register_role")
     private  RegisterRole registerRole;

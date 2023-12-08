@@ -19,6 +19,7 @@ import lombok.ToString;
 import java.time.LocalDateTime;
 
 import com.example.parcel_delivery.models.enums.NotificationType;
+import com.fasterxml.jackson.annotation.JsonBackReference;
 
 
 @Entity
@@ -35,6 +36,7 @@ public class Notification {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
+    @JsonBackReference
     private User user;
 
     @ManyToOne(fetch = FetchType.LAZY)

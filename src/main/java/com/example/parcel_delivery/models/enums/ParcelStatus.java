@@ -6,5 +6,4 @@ public enum ParcelStatus {
     AWAITING_PICKUP, 
     IN_TRANSIT, 
     DELIVERED, 
-    CANCELLED
 }
