@@ -35,8 +35,11 @@ public class UserServiceImpl implements UserService{
     @Override
     public User getAuthenticatedUser() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+
+        if (authentication == null || !authentication.isAuthenticated()) {
+            throw new TendrilExExceptionHandler(HttpStatus.UNAUTHORIZED, "User not authenticated");
+        }
         String username = authentication.getName();
-        System.out.println("hajri: " + username);
         return getUserbyUsername(username);         
     }
     

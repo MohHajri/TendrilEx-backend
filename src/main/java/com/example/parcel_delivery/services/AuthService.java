@@ -11,5 +11,7 @@ public interface AuthService {
 
     LoginResDTO loginUser(LoginReqDTO loginReqDto);
 
+    boolean authenticateRobotUser();
+
 
 }

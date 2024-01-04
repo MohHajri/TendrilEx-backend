@@ -7,7 +7,8 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
-import com.example.parcel_delivery.models.dtos.requests.ParcelLockerReqDTO;
+
+import com.example.parcel_delivery.models.dtos.requests.CustomerLocationReqDTO;
 import com.example.parcel_delivery.models.dtos.requests.ParcelReqDTO;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.Point;
@@ -34,11 +35,11 @@ public class LocationUtils {
         return geometryFactory.createPoint(new Coordinate(longitude, latitude));
     }
 
-    public Point geocodeLocation(ParcelLockerReqDTO lockerReqDTO) {
+    public Point geocodeLocation(CustomerLocationReqDTO lockerReqDTO) {
         try {
-            String addressStr = lockerReqDTO.getRecipientAddress() + ", " +
-                                lockerReqDTO.getRecipientPostcode() + " " +
-                                lockerReqDTO.getRecipientCity() + ", Finland";
+            String addressStr = lockerReqDTO.getSenderAddress() + ", " +
+                                lockerReqDTO.getSenderPostcode() + " " +
+                                lockerReqDTO.getSenderCity() + ", Finland";
             String encodedAddress = URLEncoder.encode(addressStr, "UTF-8");
             String requestUri = GEOCODING_RESOURCE + "?key=" + API_KEY + "&address=" + encodedAddress;
 

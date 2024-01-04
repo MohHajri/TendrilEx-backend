@@ -3,6 +3,8 @@ package com.example.parcel_delivery.models.entities;
 
 import com.example.parcel_delivery.models.enums.CabinetStatus;
 import com.fasterxml.jackson.annotation.JsonBackReference;
+
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -43,7 +45,7 @@ public class Cabinet {
     @JsonBackReference
     private ParcelLocker lockerLocation;
 
-    @OneToOne
+    @OneToOne(mappedBy = "cabinet", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     @JoinColumn(name = "parcel_id", referencedColumnName = "id")
     @JsonBackReference
     private Parcel currentParcel;

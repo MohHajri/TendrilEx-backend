@@ -4,9 +4,12 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.example.parcel_delivery.models.dtos.requests.CustomerLocationReqDTO;
 import com.example.parcel_delivery.models.dtos.responses.CustomerResDTO;
 import com.example.parcel_delivery.models.entities.Customer;
 import com.example.parcel_delivery.models.mappers.CustomerMapper;
@@ -40,6 +43,12 @@ public class CustomerController {
     @GetMapping("/authenticated")
     public ResponseEntity<CustomerResDTO> getCustomerByAuthenticatedUser() {
         Customer customer = customerService.getCustomerByAuthenticatedUser();
+        return ResponseEntity.ok(customerMapper.toCustomerResDTO(customer));
+    }
+
+    @PutMapping("/sender/location")
+    public ResponseEntity<CustomerResDTO> updateCustomerLocation(@RequestBody CustomerLocationReqDTO customerLocationReqDTO) {
+        Customer customer = customerService.updateCustomerLocation(customerLocationReqDTO);
         return ResponseEntity.ok(customerMapper.toCustomerResDTO(customer));
     }
     

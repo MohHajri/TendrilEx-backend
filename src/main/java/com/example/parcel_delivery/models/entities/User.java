@@ -38,8 +38,12 @@ public class User {
 
     private String email;
 
-    private String firstname;
-    private String lastname;
+    private String firstName;
+    private String lastName;
+
+    private String address;
+    private String postcode;
+    private String city;
 
     @Column(name = "location_point", columnDefinition = "geometry(Point,4326)")
     @JsonIgnore
@@ -57,8 +61,10 @@ public class User {
     @JsonManagedReference
     private Set<Notification> notifications = new HashSet<>();
 
-    @ManyToMany(fetch = FetchType.EAGER, cascade = CascadeType.ALL)
-    @JoinTable(name = "users_roles", joinColumns = @JoinColumn(name = "user_id", referencedColumnName = "id"), inverseJoinColumns = @JoinColumn(name = "role_id", referencedColumnName = "id"))
+    @ManyToMany(fetch = FetchType.EAGER, cascade = { CascadeType.MERGE })
+    @JoinTable(name = "users_roles", 
+               joinColumns = @JoinColumn(name = "user_id", referencedColumnName = "id"), 
+               inverseJoinColumns = @JoinColumn(name = "role_id", referencedColumnName = "id"))
     private Set<Role> roles = new HashSet<>();
 
 }

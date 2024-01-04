@@ -53,7 +53,7 @@ public class NotificationServiceImpl implements NotificationService{
     @Override
     public Notification sendEmailNotification(String recipientEmail, Integer transactionCode, String subject, String name, ParcelStatus status) {
         try {
-            emailService.sendHtmlEmail(recipientEmail, subject, name, status, transactionCode);
+            // emailService.sendHtmlEmail(recipientEmail, subject, name, status, transactionCode);
         } catch (Exception e) {
             e.printStackTrace();
         }

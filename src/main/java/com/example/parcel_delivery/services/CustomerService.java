@@ -2,6 +2,7 @@ package com.example.parcel_delivery.services;
 
 import java.util.Optional;
 
+import com.example.parcel_delivery.models.dtos.requests.CustomerLocationReqDTO;
 import com.example.parcel_delivery.models.entities.Customer;
 
 public interface CustomerService {
@@ -13,5 +14,7 @@ public interface CustomerService {
     Customer getCustomerByAuthenticatedUser();
 
     Optional<Customer> findCustomerByPhoneNumber(String recipientPhone);
+
+    Customer updateCustomerLocation(CustomerLocationReqDTO customerLocationReqDTO);
     
 }

@@ -9,11 +9,11 @@ import com.example.parcel_delivery.models.enums.ParcelStatus;
 import com.fasterxml.jackson.annotation.JsonBackReference;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
 
-import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -68,6 +68,12 @@ public class Parcel {
     private String unregisteredRecipientAddress;
 
     @Column
+    private String unregisteredRecipientPostcode;
+
+    @Column
+    private String unregisteredRecipientCity;
+
+    @Column
     private Boolean isRecipientRegistered = false;
 
     @Column(nullable = false, unique = true)
@@ -96,7 +102,7 @@ public class Parcel {
     @JoinColumn(name = "driver_id", referencedColumnName = "id")
     private Driver driver;
 
-    @OneToOne(cascade = CascadeType.ALL)
+    @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "cabinet_id", referencedColumnName = "id")
     @JsonManagedReference
     private Cabinet cabinet;

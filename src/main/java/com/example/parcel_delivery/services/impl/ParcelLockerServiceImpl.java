@@ -9,11 +9,11 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
 import com.example.parcel_delivery.exceptions.TendrilExExceptionHandler;
-import com.example.parcel_delivery.models.dtos.requests.ParcelLockerReqDTO;
+import com.example.parcel_delivery.models.entities.Customer;
 import com.example.parcel_delivery.models.entities.ParcelLocker;
 import com.example.parcel_delivery.repositories.ParcelLockerRepo;
+import com.example.parcel_delivery.services.CustomerService;
 import com.example.parcel_delivery.services.ParcelLockerService;
-import com.example.parcel_delivery.utils.LocationUtils;
 
 @Service
 public class ParcelLockerServiceImpl implements ParcelLockerService {
@@ -21,13 +21,14 @@ public class ParcelLockerServiceImpl implements ParcelLockerService {
     @Autowired
     private ParcelLockerRepo parcelLockerRepo;
 
-    @Autowired
-    private LocationUtils locationUtil;
+    @Autowired 
+    private CustomerService customerService;
 
     @Override
-    public List<ParcelLocker> getFiveNearestAvailablelockers(ParcelLockerReqDTO senderLocation) {
+    public List<ParcelLocker> getFiveNearestAvailablelockers() {
 
-        Point senderPoint = locationUtil.geocodeLocation(senderLocation);
+        Customer customer = customerService.getCustomerByAuthenticatedUser();
+        Point senderPoint = customer.getUser().getUserPoint();
         List<ParcelLocker> nearestAvailableLockers = parcelLockerRepo.getFiveNearestAvailablelockers(senderPoint);
 
         return nearestAvailableLockers.stream().limit(5).collect(Collectors.toList());

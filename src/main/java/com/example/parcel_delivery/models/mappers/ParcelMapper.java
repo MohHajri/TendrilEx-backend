@@ -13,7 +13,7 @@ public interface ParcelMapper {
     @Mapping(source = "id", target = "parcelId")
     @Mapping(source = "transactionCodeValidUntil", target = "codeExpiryDate", dateFormat = "yyyy-MM-dd'T'HH:mm:ss")
     @Mapping(source = "selectedLockerLocation.lockerPoint", target = "parcelLockerLocationPoint", qualifiedByName = "pointToString")
-    @Mapping(source = "sender.user.firstname", target = "senderName")
+    @Mapping(source = "sender.user.firstName", target = "senderName")
     @Mapping(source = "parcel", target = "recipientName", qualifiedByName = "getRecipientName")
     ParcelResDTO toParcelResDTO(Parcel parcel);
 
@@ -30,7 +30,7 @@ public interface ParcelMapper {
     @Named("getRecipientName")
     default String getRecipientName(Parcel parcel) {
         if (parcel.getIsRecipientRegistered() != null && parcel.getIsRecipientRegistered()) {
-            return parcel.getRecipient() != null ? parcel.getRecipient().getUser().getFirstname() : null;
+            return parcel.getRecipient() != null ? parcel.getRecipient().getUser().getFirstName() : null;
         } else {
             return parcel.getUnregisteredRecipientName();
         }

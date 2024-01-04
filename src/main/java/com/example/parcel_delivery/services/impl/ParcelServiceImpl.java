@@ -1,9 +1,13 @@
 package com.example.parcel_delivery.services.impl;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import com.example.parcel_delivery.models.dtos.requests.ParcelReqDTO;
 import com.example.parcel_delivery.models.entities.Cabinet;
@@ -20,6 +24,9 @@ import com.example.parcel_delivery.services.ParcelService;
 import com.example.parcel_delivery.utils.LocationUtils;
 import com.example.parcel_delivery.utils.TransactionCodeGenerator;
 import org.locationtech.jts.geom.Point;
+import org.springframework.http.HttpStatus;
+
+import com.example.parcel_delivery.exceptions.TendrilExExceptionHandler;
 
 @Service
 public class ParcelServiceImpl implements ParcelService {
@@ -45,6 +52,7 @@ public class ParcelServiceImpl implements ParcelService {
     @Autowired
     private ParcelRepo parcelRepository;
 
+
     @Override
     public Parcel sendNewParcel(ParcelReqDTO parcelReqDTO) {
         //check if parcel is already sent
@@ -55,6 +63,9 @@ public class ParcelServiceImpl implements ParcelService {
 
         // Get auth customer and act as a sender
         Customer sender = customerService.getCustomerByAuthenticatedUser();
+        if(sender == null) {
+            throw new TendrilExExceptionHandler(HttpStatus.FORBIDDEN, "You are not allowed to access this resource");
+        }
         Customer recipient = customerService.findCustomerByPhoneNumber(parcelReqDTO.getRecipientPhoneNo()).orElse(null);
         boolean isRecipientRegistered = recipient != null;
 
@@ -79,10 +90,12 @@ public class ParcelServiceImpl implements ParcelService {
         parcel.setUnregisteredRecipientPhone(parcelReqDTO.getRecipientPhoneNo());
         parcel.setUnregisteredRecipientAddress(parcelReqDTO.getRecipientAddress());
         parcel.setUnregisteredRecipientEmail(parcelReqDTO.getRecipientEmail());
+        parcel.setUnregisteredRecipientPostcode(parcelReqDTO.getRecipientPostcode());
+        parcel.setUnregisteredRecipientCity(parcelReqDTO.getRecipientCity());
         parcel.setIsRecipientRegistered(isRecipientRegistered);
         parcel.setTransactionCode(transactionCode);
         parcel.setTransactionCodeValidUntil(LocalDateTime.now().plusDays(12));
-        parcel.setStatus(ParcelStatus.SENT);
+        parcel.setStatus(ParcelStatus.AWAITING_DRIVER_ASSIGNMENT);
         parcel.setCabinet(reservedCabinet);
         parcel.setSelectedLockerLocation(ParcelLockerService.getParcelLockerById(parcelReqDTO.getSelectedLockerId()));
         parcel.setCreatedAt(LocalDateTime.now());
@@ -113,8 +126,8 @@ public class ParcelServiceImpl implements ParcelService {
                     recipient.getUser().getEmail(),
                     transactionCode,
                     "New Parcel",
-                    recipient.getUser().getFirstname(),
-                    ParcelStatus.SENT);
+                    recipient.getUser().getFirstName(),
+                    ParcelStatus.CREATED);
         } else {
             // Unregistered recipient
             notificationService.sendEmailNotification(
@@ -122,9 +135,71 @@ public class ParcelServiceImpl implements ParcelService {
                     transactionCode,
                     "New Parcel",
                     parcelReqDTO.getRecipientName(),
-                    ParcelStatus.SENT);
+                    ParcelStatus.CREATED);
         }
 
         return savedParcel;
     }
-}
+
+    @Override
+    public Parcel getParcelById(Long id) {
+        return parcelRepository.
+                findById(id).
+                orElseThrow(() -> new TendrilExExceptionHandler(HttpStatus.NOT_FOUND, "No parcel found with id: " + id));
+          }
+
+    @Override
+    public List<Parcel> getSentParcelsByCustomerId(Long id) {
+            Long authCustomerId = customerService.getCustomerByAuthenticatedUser().getId();
+            if (authCustomerId != id) {
+                throw new TendrilExExceptionHandler(HttpStatus.FORBIDDEN, "You are not allowed to access this resource");
+            } 
+            return parcelRepository.findBySenderId(id);
+    }
+
+    @Override
+    public List<Parcel> getReceivedParcelsByCustomerId(Long id) {
+            Long authCustomerId = customerService.getCustomerByAuthenticatedUser().getId();
+            if (authCustomerId != id) {
+                throw new TendrilExExceptionHandler(HttpStatus.FORBIDDEN, "You are not allowed to access this resource");
+            } 
+            return parcelRepository.findByRecipientId(id);
+        }
+
+    @Override
+    public Parcel getByParcelIdAndSenderId(Long id, Long senderId) {
+        return parcelRepository.
+                findByIdAndSenderId(id, senderId)
+                .orElseThrow(() -> new TendrilExExceptionHandler(HttpStatus.NOT_FOUND, "No parcel found with id: " + id));
+       }
+
+    @Override
+    public Parcel getByParcelIdAndRecipientId(Long id, Long recipientId) {
+        return parcelRepository.
+                findByIdAndRecipientId(id, recipientId)
+                .orElseThrow(() -> new TendrilExExceptionHandler(HttpStatus.NOT_FOUND, "No parcel found with id: " + id));
+
+        }
+
+    @Override
+    public Parcel driverPicksUp(Long parcelId) {
+      return null; }
+
+    @Override
+    public Parcel driverDelivers(Long parcelId) {
+        return null;
+    }
+
+    @Override
+    public List<Parcel> findParcelsForDriverAssignment(int page, int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        Page<Parcel> parcelPage = parcelRepository.findByStatus(ParcelStatus.AWAITING_DRIVER_ASSIGNMENT, pageable);
+        return parcelPage.getContent();
+    }
+
+    @Override
+    public void save(Parcel parcel) {
+        parcelRepository.save(parcel);
+        }
+
+    }

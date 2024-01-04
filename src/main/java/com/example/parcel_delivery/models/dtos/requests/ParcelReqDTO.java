@@ -23,6 +23,9 @@ public class ParcelReqDTO {
     @NotBlank(message = "Sender Longitude is mandatory")
     private String senderLongitude;
 
+    @NotBlank(message = "Sender city is mandatory")
+    private String senderCity;
+
     @NotBlank(message = "Sender phone is mandatory")
     @Pattern(regexp = "^04\\d{7,8}$|^050\\d{6,7}$", message = "Invalid Finnish mobile phone number.")
     private String senderPhoneNo;
