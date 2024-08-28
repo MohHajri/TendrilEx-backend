@@ -137,18 +137,9 @@ public class ParcelRobot {
             ParcelReqDTO dto = createRandomParcelReqDTO(customer, robotUsername);
             try {
 
-                //TEMPORARY
-                // // Attempt to send the parcel
-                // parcelService.sendNewParcel(dto);
-
-                //TEST 
-
                 Parcel parcel = parcelService.sendNewParcel(dto);
                 // Simulate the drop-off process to update the status to 'AWAITING_DRIVER_ASSIGNMENT'
                  parcelService.dropOffParcelInCabinet(parcel.getId(), parcel.getTransactionCode());
-
-                //TEST 
-
 
                 // Mark this customer as having received a parcel from this robot
                 sentCustomers.add(customer.getId());

@@ -116,18 +116,7 @@ public class ParcelServiceImpl implements ParcelService {
             parcel.setMass(parcelReqDTO.getMass());
             parcel.setDescription(parcelReqDTO.getDescription());
             parcel.setParcelType(parcelType);
-
-            //TEST 
-
             parcel.setStatus(ParcelStatus.CREATED);
-
-
-
-            //TEST
-            // parcel.setStatus(ParcelStatus.AWAITING_DRIVER_ASSIGNMENT);
-
-
-
             parcel.setCabinet(reservedCabinet);
             parcel.setSelectedLockerLocation(ParcelLockerService.getParcelLockerById(parcelReqDTO.getSelectedLockerId()));
             parcel.setTransactionCode(transactionCode);
