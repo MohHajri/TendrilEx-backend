@@ -45,10 +45,6 @@ public class CustomerServiceImpl implements CustomerService {
     @Override
     public Customer getCustomerByAuthenticatedUser() {
         User authUser = userService.getAuthenticatedUser();
-        //  // checking if auth has role user
-        //  if (authUser.getRoles().stream().noneMatch(role -> role.getName().equals("ROLE_USER"))) {
-        //     return null;
-        // }
         Long authUserId = authUser.getId();
         return customerRepository.findByUserId(authUserId)
                 .orElseThrow(() -> new TendrilExExceptionHandler(HttpStatus.NOT_FOUND,

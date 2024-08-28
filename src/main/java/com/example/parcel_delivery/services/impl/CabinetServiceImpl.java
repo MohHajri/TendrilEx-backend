@@ -42,6 +42,12 @@ public class CabinetServiceImpl implements CabinetService {
         
         
     }
+
+    @Override
+    public void save(Cabinet cabinet) {
+        cabinetRepo.save(cabinet);
+        
+    }
  
     
 }

@@ -32,6 +32,12 @@ public class RegisterReqDTO {
     @NotBlank(message = "email cannot be blank")
     private String email;
 
+    //temporary
+    private String address;
+    private String city;
+    private String postcode;
+
+
     @Enumerated(EnumType.STRING)
     private  RegisterRole registerRole;
 

@@ -6,6 +6,7 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import com.example.parcel_delivery.models.enums.ParcelStatus;
+import com.example.parcel_delivery.models.enums.ParcelType;
 import com.fasterxml.jackson.annotation.JsonBackReference;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
 
@@ -88,6 +89,10 @@ public class Parcel {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private ParcelStatus status;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private ParcelType parcelType;
     
     @ManyToOne
     @JoinColumn(name = "sender_id", referencedColumnName = "id")
@@ -107,7 +112,7 @@ public class Parcel {
     @JsonManagedReference
     private Cabinet cabinet;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "storage_id", referencedColumnName = "id")
     private Storage storage;
 
@@ -127,10 +132,10 @@ public class Parcel {
     @Column(updatable = true)
     private LocalDateTime statusUpdatedAt;
 
-    @Column
+    @Column(unique = true, nullable = false)
     private String idempotencyKey;
 
-    @Column
+    @Column(nullable = false)
     private LocalDateTime idempotencyKeyCreatedAt;
 
 

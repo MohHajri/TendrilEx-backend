@@ -18,11 +18,15 @@ import com.example.parcel_delivery.services.AuthService;
 import com.example.parcel_delivery.services.CustomUserDetailService;
 import com.example.parcel_delivery.utils.JWTUtils;
 
-import jakarta.annotation.PostConstruct;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import java.util.Set;
+
+import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jts.geom.GeometryFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.event.ContextRefreshedEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -32,6 +36,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import java.util.Arrays;
+import java.util.HashSet;
 
 import org.springframework.stereotype.Service;
 
@@ -69,40 +74,43 @@ public class AuthServiceImpl implements AuthService {
     @PersistenceContext
     private EntityManager entityManager;
 
-    private static final String ROBOT_USERNAME = "robotUser";
-    private static final String ROBOT_PASSWORD = "123456"; 
+    private static final String ROBOT_USERNAME_HELSINKI = "robotUserHelsinki";
+    private static final String ROBOT_USERNAME_OULU = "robotUserOulu";
+    private static final String ROBOT_PASSWORD = "123456";
 
-    @PostConstruct
+
+    @EventListener(ContextRefreshedEvent.class)
     public void init() {
-        Arrays.asList("ROLE_ADMIN", "ROLE_USER", "ROLE_ROBOT").forEach(this::createRoleIfNotFound);
-        createRobotUser();
+        initializeRolesAndRobotUsers();
     }
 
-    private void createRoleIfNotFound(String roleName) {
-        roleRepository.findByName(roleName).orElseGet(() -> {
-            Role newRole = new Role();
-            newRole.setName(roleName);
-            return roleRepository.save(newRole);
-        });
+    private void initializeRolesAndRobotUsers() {
+        Set<String> existingRoles = new HashSet<>(roleRepository.findAllRoleNames());
+        for (String roleName : Arrays.asList("ROLE_ADMIN", "ROLE_USER", "ROLE_ROBOT")) {
+            if (!existingRoles.contains(roleName)) {
+                roleRepository.save(new Role(null, roleName));
+            }
+        }
+    
+        createRobotUserIfNotExists(ROBOT_USERNAME_HELSINKI, "Helsinki", new Coordinate(24.945831, 60.192059));
+        createRobotUserIfNotExists(ROBOT_USERNAME_OULU, "Oulu", new Coordinate(25.46816, 65.01236));
     }
 
-    private void createRobotUser() {
-        User robotUser = userRepository.findByUsername(ROBOT_USERNAME).orElseGet(() -> {
-            User newUser = new User();
-            newUser.setUsername(ROBOT_USERNAME);
-            newUser.setPassword(passwordEncoder.encode(ROBOT_PASSWORD));
-            newUser.setCity("Helsinki");
-            newUser.setRoles(Set.of(findRoleByName("ROLE_ROBOT")));
-            return userRepository.save(newUser);
-        });
-        createOrUpdateCustomer(robotUser);
+    private void createRobotUserIfNotExists(String username, String city, Coordinate location) {
+        if (userRepository.findByUsername(username).isEmpty()) {
+            User robotUser = new User();
+            robotUser.setUsername(username);
+            robotUser.setPassword(passwordEncoder.encode(ROBOT_PASSWORD));
+            robotUser.setCity(city);
+            robotUser.setUserPoint(new GeometryFactory().createPoint(location));
+            robotUser.setRoles(Set.of(roleRepository.findByName("ROLE_ROBOT")
+                    .orElseThrow(() -> new IllegalStateException("ROLE_ROBOT not found"))));
+            userRepository.save(robotUser);
+            createOrUpdateCustomer(robotUser);
+        }
     }
 
-    private Role findRoleByName(String roleName) {
-        return roleRepository.findByName(roleName)
-            .orElseThrow(() -> new IllegalStateException("Role " + roleName + " not found"));
-    }
-
+    
     @Override
     public SignupResDTO registerUser(RegisterReqDTO registerDto) {
         User user = userRepository.findByUsername(registerDto.getUsername())
@@ -172,16 +180,17 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
-    public boolean authenticateRobotUser() {
+    public boolean authenticateRobotUser(String robotUsername) {
         try {
+            // Use the provided robotUsername for authentication
             Authentication authentication = new UsernamePasswordAuthenticationToken(
-                    ROBOT_USERNAME, ROBOT_PASSWORD);
+                    robotUsername, ROBOT_PASSWORD);
             SecurityContextHolder.getContext().setAuthentication(
                     authenticationManager.authenticate(authentication));
             return true;
         } catch (AuthenticationException e) {
             return false;
         }
-    }
+    }    
 
 }

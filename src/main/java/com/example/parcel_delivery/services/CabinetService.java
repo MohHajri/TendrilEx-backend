@@ -13,5 +13,7 @@ public interface CabinetService {
 
     Cabinet reserveCabinetFromThe5Lockers(Long selectedLockerIdLong);
 
+    void save(Cabinet cabinet);
+
     
 }

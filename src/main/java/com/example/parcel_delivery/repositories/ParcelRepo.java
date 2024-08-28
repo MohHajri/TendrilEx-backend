@@ -9,9 +9,12 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
+import com.example.parcel_delivery.models.entities.Driver;
 import com.example.parcel_delivery.models.entities.Parcel;
 import com.example.parcel_delivery.models.enums.ParcelStatus;
+import com.example.parcel_delivery.models.enums.ParcelType;
 
 public interface ParcelRepo extends JpaRepository<Parcel, Long> {
 
@@ -29,7 +32,23 @@ public interface ParcelRepo extends JpaRepository<Parcel, Long> {
 
     Optional<Parcel> findByIdAndRecipientId(Long id, Long recipientId);
 
-    // List<Parcel> findByStatus(ParcelStatus status);
-
     Page<Parcel> findByStatus(ParcelStatus status, Pageable pageable);
+
+    Long countByDriver(Driver driver);
+
+    @Query("SELECT p FROM Parcel p WHERE p.driver.id = :driverId AND p.status = :status")
+    List<Parcel> findByDriverIdAndStatus(@Param("driverId") Long driverId, @Param("status") ParcelStatus status);
+
+    @Query("SELECT p FROM Parcel p WHERE p.recipient.id = :recipientId AND p.status = :status")
+    List<Parcel> findByRecipientIdAndStatus(@Param("recipientId") Long recipientId, @Param("status") ParcelStatus status);
+
+    @Query("SELECT p FROM Parcel p WHERE p.driver.id = :driverId")
+    List<Parcel> findByDriverId(@Param("driverId") Long driverId);
+
+    @Query("SELECT p FROM Parcel p WHERE p.driver.id = :driverId AND p.parcelType = :parcelType")
+    List<Parcel> findByDriverIdAndParcelType(@Param("driverId") Long driverId, @Param("parcelType") ParcelType parcelType);
+
+    Optional<Parcel> findByTransactionCode(Integer transactionCode);
+
+
 }
