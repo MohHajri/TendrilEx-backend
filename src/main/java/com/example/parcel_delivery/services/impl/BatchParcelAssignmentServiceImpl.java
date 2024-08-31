@@ -1,9 +1,7 @@
 package com.example.parcel_delivery.services.impl;
 
 import java.util.List;
-import java.util.ArrayList;
 import java.util.Map;
-import java.util.Random;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -37,8 +35,8 @@ public class BatchParcelAssignmentServiceImpl implements BatchParcelAssignmentSe
 
     // Define the minimum number of parcels each driver should handle per type
     private static final int INTRA_CITY_PARCELS_PER_DRIVER = 4; // Intra-city parcels per driver
-
     private static final int INTER_CITY_PARCELS_PER_DRIVER = 5; // Inter-city parcels per driver
+
 
     @Transactional
     // @Scheduled(cron = "0 0 1 * * MON-FRI")
@@ -46,23 +44,25 @@ public class BatchParcelAssignmentServiceImpl implements BatchParcelAssignmentSe
 
         int page = 0;
 
+        int pageSize = 20; // Adjust based on system capability
+
         List<Parcel> parcels;
 
         do {
-            // Fetch unassigned parcels that need to be assigned to drivers
-            parcels = parcelService.findParcelsForDriverAssignment(page, Math.max(INTRA_CITY_PARCELS_PER_DRIVER, INTER_CITY_PARCELS_PER_DRIVER));
+            // Fetch unassigned parcels for the current page( either intra or inter)
+            parcels = parcelService.findParcelsForDriverAssignment(page, pageSize);
 
-            // If no parcels are available, exit the batch process
             if (parcels.isEmpty()) {
 
-                break;
+                break; // Exit if no parcels are available
             }
 
-            // Group parcels by city to minimize database queries
+            // Group parcels by sender city to optimize driver assignment
             Map<String, List<Parcel>> parcelsByCity = parcels.stream()
+
                     .collect(Collectors.groupingBy(parcel -> parcel.getSender().getUser().getCity()));
 
-            // Process each city separately
+            // Process parcels for each city
             for (Map.Entry<String, List<Parcel>> entry : parcelsByCity.entrySet()) {
 
                 String city = entry.getKey();
@@ -70,170 +70,251 @@ public class BatchParcelAssignmentServiceImpl implements BatchParcelAssignmentSe
                 List<Parcel> cityParcels = entry.getValue();
 
                 try {
-                    // Assign parcels for the specific city
 
                     processCityParcels(cityParcels, city);
 
                 } catch (Exception e) {
 
-                    throw new TendrilExExceptionHandler(HttpStatus.INTERNAL_SERVER_ERROR, "Batch assignment failed for city " + city + ": " + e.getMessage());
+                    throw new TendrilExExceptionHandler(HttpStatus.INTERNAL_SERVER_ERROR,
+                            "Batch assignment failed for city " + city + ": " + e.getMessage());
+
                 }
             }
 
             page++;
+
         } while (!parcels.isEmpty());
     }
 
     /**
-     * Process parcels for a specific city by dividing them into intra-city and inter-city parcels,
-     * and then assigning them to available drivers.
+     * Process parcels for a specific city by dividing them into intra-city and
+     * inter-city parcels,
+     * and then assigning them to available drivers based on predefined scenarios.
      *
      * @param parcels The list of parcels in the city.
      * @param city    The name of the city.
      */
     private void processCityParcels(List<Parcel> parcels, String city) {
         // Separate parcels into intra-city and inter-city
+        //intra city parcels
+        List<Parcel> intraCityParcels = parcels.stream()
 
-        List<Parcel> intraCityParcels = new ArrayList<>();
+                .filter(parcel -> parcel.getParcelType() == ParcelType.INTRA_CITY)
 
+                .collect(Collectors.toList());
+
+        // inter city parcels are grouped by destionation
         Map<String, List<Parcel>> interCityParcelsByDestination = parcels.stream()
 
                 .filter(parcel -> parcel.getParcelType() == ParcelType.INTER_CITY)
 
-                .collect(Collectors.groupingBy(parcel -> {
+                .collect(Collectors
 
-                    if (parcel.getRecipient() != null) {
+                        .groupingBy(parcel -> parcel.getRecipient() != null ? parcel.getRecipient().getUser().getCity()
 
-                        return parcel.getRecipient().getUser().getCity();
-
-                    } else {
-
-                        return parcel.getUnregisteredRecipientCity();
-
-                    }
-
-                }));
-
-        for (Parcel parcel : parcels) {
-
-            if (parcel.getParcelType() == ParcelType.INTRA_CITY) {
-
-                intraCityParcels.add(parcel);
-
-            }
-        }
+                                : parcel.getUnregisteredRecipientCity()));
 
         // Assign intra-city parcels
         assignIntraCityParcels(intraCityParcels, city);
 
-        // Assign inter-city parcels, considering return parcels from storage
+        // assign inter-city parcels
         assignInterCityParcels(interCityParcelsByDestination, city);
     }
 
     /**
      * Assigns intra-city parcels to available drivers in a specific city.
-     * Ensures that each driver receives the minimum required number of parcels.
-     * Parcels that do not meet the minimum requirement are not assigned.
+     * Handles high volume, low volume, and end-of-batch scenarios.
      *
      * @param parcels The list of intra-city parcels to assign.
      * @param city    The city where the drivers operate.
      */
     private void assignIntraCityParcels(List<Parcel> parcels, String city) {
 
-        if (parcels.isEmpty() || parcels.size() < INTRA_CITY_PARCELS_PER_DRIVER) {
-
-            return; // Do not assign parcels if they don't meet the minimum requirement
-        }
+        if (parcels.isEmpty()) return; // No parcels to assign
 
         List<Driver> availableDrivers = driverService.findAllAvailableDriversInCity(DriverType.INTRA_CITY, city);
 
-        for (Driver driver : availableDrivers) {
+        /** Scenario 1: High Volume Assignment
+         * Purpose: This scenario exists to ensure that drivers are fully utilized by assigning them a specific threshold of parcels (INTRA_CITY_PARCELS_PER_DRIVER). 
+         * The idea is to ensuring that each driver has a sufficient workload to justify their assignment for the day (the batch works daily at 1:00 am)
+         * 
+         */
+        if (parcels.size() >= INTRA_CITY_PARCELS_PER_DRIVER) {
 
-            if (parcels.size() < INTRA_CITY_PARCELS_PER_DRIVER) {
+            for (Driver driver : availableDrivers) {
 
-                break; // Do not assign if remaining parcels are less than the minimum required
+                if (parcels.isEmpty()) break;
+
+                if (!driverService.hasParcelsAssigned(driver)) {
+
+                    for (int i = 0; i < INTRA_CITY_PARCELS_PER_DRIVER && !parcels.isEmpty(); i++) {
+
+                        Parcel parcel = parcels.remove(0);
+
+                        // assignParcelToDriver(parcel, driver, ParcelStatus.AWAITING_PICKUP);
+                        assignParcelToDriver(parcel, driver, ParcelStatus.ASSIGNED_TO_INTRA_CITY_DRIVER);
+
+                    }
+
+                    if (parcelService.countParcelsByDriver(driver) >= INTRA_CITY_PARCELS_PER_DRIVER) {
+
+                        driverService.updateDriverAvailability(driver, false);
+
+                    }
+                }
             }
+        }
 
-            for (int i = 0; i < INTRA_CITY_PARCELS_PER_DRIVER && !parcels.isEmpty(); i++) {
+        /**Scenario 2: Low Volume Assignment
+         * Purpose: This scenario is to ensure that even on low-volume days, parcels are still delivered rather than waiting until the next day, which could cause delays.
+         * It's a fallback. it happens when the total number of parcels available on a given day is less than the threshold.
+         * 
+         */
+        if (!parcels.isEmpty() && parcels.size() < INTRA_CITY_PARCELS_PER_DRIVER) {
 
-                Parcel parcel = parcels.remove(0);
+            assignRemainingParcels(parcels, availableDrivers);
 
-                assignParcelToDriver(parcel, driver, ParcelStatus.AWAITING_PICKUP);
+        }
 
-            }
+        /**
+         * Scenario 3: End-of-Batch Assignment
+         * Purpose: To handle leftover parcels after processing the majority of parcels.
+         */
+        if (!parcels.isEmpty()) {
 
-            // Mark driver as unavailable if they have reached their parcel limit
-            if (parcelService.countParcelsByDriver(driver) >= INTRA_CITY_PARCELS_PER_DRIVER) {
-
-                driverService.updateDriverAvailability(driver, false);
-
-            }
+            assignRemainingParcels(parcels, availableDrivers);
         }
     }
 
     /**
-     * Assigns inter-city parcels to drivers and ensures that each driver also carries return parcels when available.
-     * Parcels that do not meet the minimum outgoing requirement are not assigned.
+     * Assigns inter-city parcels to drivers and ensures that each driver also
+     * carries return parcels when available.
+     * Handles high volume, low volume, and end-of-batch scenarios.
      *
-     * @param interCityParcelsByDestination The map of outgoing parcels grouped by destination city.
-     * @param city                          The city from which the parcels are being sent.
+     * @param interCityParcelsByDestination The map of outgoing parcels grouped by
+     *                                      destination city.
+     * @param city                          The city from which the parcels are
+     *                                      being sent.
      */
     private void assignInterCityParcels(Map<String, List<Parcel>> interCityParcelsByDestination, String city) {
 
         List<Driver> availableInterCityDrivers = driverService.findAllAvailableDriversInCity(DriverType.INTER_CITY, city);
 
-        Random random = new Random();
-
+        /**
+         * Scenario 1: High Volume Assignment
+         * As said above, purpose is to ensure drivers are fully utilized by assigning them a specific threshold of parcels.
+         */
         for (Driver driver : availableInterCityDrivers) {
-            
-            // Randomly select a destination city for this driver
-            List<String> destinationCities = new ArrayList<>(interCityParcelsByDestination.keySet());
 
-            if (destinationCities.isEmpty()) break;
+            if (interCityParcelsByDestination.isEmpty()) break;
 
-            String destinationCity = destinationCities.get(random.nextInt(destinationCities.size()));
+            for (String destinationCity : interCityParcelsByDestination.keySet()) {
 
-            List<Parcel> outgoingParcels = interCityParcelsByDestination.get(destinationCity);
+                List<Parcel> outgoingParcels = interCityParcelsByDestination.get(destinationCity);
 
-            if (outgoingParcels.size() < INTER_CITY_PARCELS_PER_DRIVER) {
+                if (outgoingParcels == null || outgoingParcels.isEmpty()) continue;
 
-                continue; // Skip if there are not enough parcels to meet the minimum requirement
-            }
+                assignParcelsToDriver(outgoingParcels, driver, INTER_CITY_PARCELS_PER_DRIVER);
 
-            // Fetch return parcels from the destination storage
-            List<Parcel> returnParcels = storageService.getParcelsForReturnTrip(destinationCity, PageRequest.of(0, INTER_CITY_PARCELS_PER_DRIVER));
+                // Also handle return parcels
+                List<Parcel> returnParcels = storageService.getParcelsForReturnTrip(destinationCity,
 
-            // Assign outgoing parcels
-            for (int i = 0; i < INTER_CITY_PARCELS_PER_DRIVER && !outgoingParcels.isEmpty(); i++) {
+                        PageRequest.of(0, INTER_CITY_PARCELS_PER_DRIVER));
 
-                Parcel parcel = outgoingParcels.remove(0);
+                assignParcelsToDriver(returnParcels, driver, INTER_CITY_PARCELS_PER_DRIVER);
 
-                assignParcelToDriver(parcel, driver, ParcelStatus.AWAITING_PICKUP);
-            }
+                if (parcelService.countParcelsByDriver(driver) >= 2 * INTER_CITY_PARCELS_PER_DRIVER) {
 
-            // Assign return parcels if they meet the minimum requirement, otherwise leave unassigned
-            if (returnParcels.size() >= INTER_CITY_PARCELS_PER_DRIVER) {
+                    driverService.updateDriverAvailability(driver, false); // Mark driver as unavailable
 
-                for (int i = 0; i < INTER_CITY_PARCELS_PER_DRIVER && !returnParcels.isEmpty(); i++) {
-
-                    Parcel parcel = returnParcels.remove(0);
-
-                    assignParcelToDriver(parcel, driver, ParcelStatus.AWAITING_PICKUP);
+                    break; // Move to the next driver
                 }
             }
+        }
 
-            // Mark driver as unavailable if they have reached their parcel limit
-            if (parcelService.countParcelsByDriver(driver) >= 2 * INTER_CITY_PARCELS_PER_DRIVER) {
+        // Scenario 2 and 3: Assign any remaining parcels
+        assignRemainingParcels(
 
-                driverService.updateDriverAvailability(driver, false);
+                interCityParcelsByDestination.values()
+                .stream()
+
+                .flatMap(List::stream)
+
+                .collect(Collectors.toList()
+
+                ),
+
+                availableInterCityDrivers);
+    }
+
+    /**
+     * Assigns remaining parcels to the first available driver.
+     *
+     * @param parcels The list of parcels to assign.
+     * @param drivers The list of available drivers.
+     */
+    private void assignRemainingParcels(List<Parcel> parcels, List<Driver> drivers) {
+
+        for (Driver driver : drivers) {
+
+            if (parcels.isEmpty())
+
+                break;
+
+            if (!driverService.hasParcelsAssigned(driver)) {
+
+                assignParcelsToDriver(parcels, driver, parcels.size()); // Assign all remaining parcels
+
+                driverService.updateDriverAvailability(driver, false); // Mark driver as unavailable
+            }
+        }
+    }
+
+    /**
+     * Assigns parcels to a specific driver, respecting the maximum parcel limit per
+     * driver.
+     *
+     * @param parcels    The list of parcels to assign.
+     * @param driver     The driver to whom the parcels will be assigned.
+     * @param maxParcels The maximum number of parcels to assign to this driver.
+     */
+    private void assignParcelsToDriver(List<Parcel> parcels, Driver driver, int maxParcels) {
+
+        int parcelsToAssign = Math.min(parcels.size(), maxParcels);
+
+        for (int i = 0; i < parcelsToAssign; i++) {
+
+            Parcel parcel = parcels.remove(0);
+
+            // assignParcelToDriver(parcel, driver, ParcelStatus.AWAITING_PICKUP);
+             // Update the status based on parcel type
+            if (parcel.getParcelType() == ParcelType.INTRA_CITY) {
+
+                assignParcelToDriver(parcel, driver, ParcelStatus.ASSIGNED_TO_INTRA_CITY_DRIVER);
+
+            } else if (parcel.getParcelType() == ParcelType.INTER_CITY) {
+
+                assignParcelToDriver(parcel, driver, ParcelStatus.ASSIGNED_TO_INTER_CITY_DRIVER);
 
             }
+            
+        }
+
+        if (parcelService.countParcelsByDriver(driver) >= maxParcels) {
+
+            driverService.updateDriverAvailability(driver, false);
 
         }
     }
 
     /**
      * Assigns a parcel to the specified driver and updates its status.
+     * This method ensures that the parcel is assigned and its status is updated in
+     * the database.
+     *
+     * @param parcel The parcel to be assigned.
+     * @param driver The driver to whom the parcel is being assigned.
+     * @param status The status to set on the parcel after assignment.
      */
     private void assignParcelToDriver(Parcel parcel, Driver driver, ParcelStatus status) {
 

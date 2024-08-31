@@ -20,4 +20,7 @@ public interface DriverRepo extends JpaRepository<Driver, Long> {
     @Query("SELECT COUNT(d) FROM Driver d WHERE d.driverType = :driverType AND d.isAvailable = true AND d.user.city = :city")
     Long countAvailableDriversByTypeAndCity(@Param("driverType") DriverType driverType, @Param("city") String city);
 
+    @Query("SELECT COUNT(p) FROM Parcel p WHERE p.driver.id = :driverId")
+    Long countParcelsAssignedToDriver(@Param("driverId") Long driverId);
+
 }

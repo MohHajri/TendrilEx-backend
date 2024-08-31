@@ -50,5 +50,11 @@ public interface ParcelRepo extends JpaRepository<Parcel, Long> {
 
     Optional<Parcel> findByTransactionCode(Integer transactionCode);
 
+    Long countByStatus(ParcelStatus status);
+
+    @Query("SELECT p FROM Parcel p WHERE p.status IN :statuses")
+    Page<Parcel> findByStatusIn(@Param("statuses") List<ParcelStatus> statuses, Pageable pageable);
+
+
 
 }

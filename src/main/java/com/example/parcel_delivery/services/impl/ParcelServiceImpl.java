@@ -10,6 +10,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.example.parcel_delivery.models.dtos.requests.ParcelReqDTO;
@@ -186,15 +187,17 @@ public class ParcelServiceImpl implements ParcelService {
     // Updated helper 
     private ParcelType determineParcelType(String senderCity, ParcelReqDTO parcelReqDTO, Customer recipient) {
         String recipientCity;
-
-        if (recipient != null) {
+    
+        // If the recipient is registered, use their city; otherwise, use the city from ParcelReqDTO
+        if (recipient != null && recipient.getUser() != null) {
             recipientCity = recipient.getUser().getCity();
         } else {
-            recipientCity = parcelReqDTO.getRecipientCity();
+            recipientCity = parcelReqDTO.getRecipientCity(); // Fallback to the city provided in the request DTO
         }
+    
         return senderCity.equals(recipientCity) ? ParcelType.INTRA_CITY : ParcelType.INTER_CITY;
     }
-
+    
 
 
     @Override
@@ -238,9 +241,14 @@ public class ParcelServiceImpl implements ParcelService {
         }
 
     @Override
+    @Transactional(propagation = Propagation.REQUIRES_NEW)  //why? to ensure that the transaction commits after processing each page. the status changes
     public List<Parcel> findParcelsForDriverAssignment(int page, int size) {
         Pageable pageable = PageRequest.of(page, size);
-        Page<Parcel> parcelPage = parcelRepository.findByStatus(ParcelStatus.AWAITING_DRIVER_ASSIGNMENT, pageable);
+        // Fetch parcels that are either awaiting intra-city or inter-city pickup
+        Page<Parcel> parcelPage = parcelRepository.findByStatusIn(
+            List.of(ParcelStatus.AWAITING_INTRA_CITY_PICKUP, ParcelStatus.AWAITING_INTER_CITY_PICKUP),
+            pageable
+        );
         return parcelPage.getContent();
     }
     
@@ -254,14 +262,28 @@ public class ParcelServiceImpl implements ParcelService {
         return parcelRepository.countByDriver(driver);
     }
 
+    @Override 
+    public Long countParcelsByStatus(ParcelStatus status) {
+        return parcelRepository.countByStatus(status);
+    }
+
 
     /**
      * This endpoint retrieves parcels that are currently in storage and assigned to a specific driver.
      * @param driverId
      * @return
      */
-    public List<Parcel> getParcelsInStorageAssignedToDriver(Long driverId) {
-        return parcelRepository.findByDriverIdAndStatus(driverId, ParcelStatus.DELIVERED_TO_DESTINATION_STORAGE);
+    public List<Parcel> getParcelsInStorageAssignedToInterDriver(Long driverId) {
+        return parcelRepository.findByDriverIdAndStatus(driverId, ParcelStatus.AWAITING_INTER_CITY_PICKUP);
+    }
+
+    /**
+     * This endpoint retrieves parcels that are currently in storage and assigned to a specific driver.
+     * @param driverId
+     * @return
+     */
+    public List<Parcel> getParcelsInStorageAssignedToIntraDriver(Long driverId) {
+        return parcelRepository.findByDriverIdAndStatus(driverId, ParcelStatus.AWAITING_INTRA_CITY_PICKUP);
     }
 
 
@@ -275,14 +297,26 @@ public class ParcelServiceImpl implements ParcelService {
     }
 
     /**
-     * This endpoint retrieves parcels that have not been assigned to any driver yet.
+     * This endpoint retrieves INTRA parcels that have not been assigned to any intra driver yet.
      * @param page the page number to retrieve (zero-based index)
      * @param size the size of the page to retrieve
-     * @return a paginated list of unassigned parcels
+     * @return a paginated list of unassigned inter parcels
      */
-    public List<Parcel> getUnassignedParcels(int page, int size) {
+    public List<Parcel> getUnassignedIntraParcels(int page, int size) {
         Pageable pageable = PageRequest.of(page, size);
-        Page<Parcel> parcelPage = parcelRepository.findByStatus(ParcelStatus.AWAITING_DRIVER_ASSIGNMENT, pageable);
+        Page<Parcel> parcelPage = parcelRepository.findByStatus(ParcelStatus.AWAITING_INTRA_CITY_PICKUP, pageable);
+        return parcelPage.getContent();
+    }
+
+    /**
+     * This endpoint retrieves INTER parcels that have not been assigned to any inter driver yet.
+     * @param page the page number to retrieve (zero-based index)
+     * @param size the size of the page to retrieve
+     * @return a paginated list of unassigned intra parcels
+     */
+    public List<Parcel> getUnassignedInterParcels(int page, int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        Page<Parcel> parcelPage = parcelRepository.findByStatus(ParcelStatus.AWAITING_INTER_CITY_PICKUP, pageable);
         return parcelPage.getContent();
     }
 
@@ -328,7 +362,8 @@ public class ParcelServiceImpl implements ParcelService {
         }
     
         // Step 7: Ensure the parcel is in a cabinet and awaiting pickup
-        if (!parcel.getStatus().equals(ParcelStatus.AWAITING_PICKUP)) {
+        // if (!parcel.getStatus().equals(ParcelStatus.AWAITING_PICKUP)) {
+            if (!parcel.getStatus().equals(ParcelStatus.AWAITING_INTRA_CITY_PICKUP)) {
             throw new TendrilExExceptionHandler(HttpStatus.BAD_REQUEST, "Parcel is not available for pickup");
         }
     
@@ -353,9 +388,6 @@ public class ParcelServiceImpl implements ParcelService {
         // Step 11: Save the updated parcel
         return parcelRepository.save(parcel);
     }
-    
-
-
 
     /**
      * Handles the storage of an inter-city parcel in the departure storage.
@@ -383,11 +415,18 @@ public class ParcelServiceImpl implements ParcelService {
             throw new TendrilExExceptionHandler(HttpStatus.BAD_REQUEST, "Parcel is not an inter-city parcel.");
         }
 
+        // Ensure the parcel has been picked up from the locker
+        if (!parcel.getStatus().equals(ParcelStatus.IN_TRANSIT_TO_DEPARTURE_STORAGE)) {
+            throw new TendrilExExceptionHandler(HttpStatus.BAD_REQUEST, "Parcel has not been picked up from locker");
+        }
+
         try {
             // Store the parcel in departure storage (sender's city)
             Storage storage = storageService.findOrCreateStorageForCity(parcel.getSender().getUser().getCity());
             parcel.setStorage(storage);
-            parcel.setStatus(ParcelStatus.DELIVERED_TO_DEPARTURE_STORAGE);
+            // parcel.setStatus(ParcelStatus.DELIVERED_TO_DEPARTURE_STORAGE);
+            parcel.setStatus(ParcelStatus.AWAITING_INTER_CITY_PICKUP);
+
 
             return parcelRepository.save(parcel);
 
@@ -396,7 +435,6 @@ public class ParcelServiceImpl implements ParcelService {
             throw new TendrilExExceptionHandler(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to deliver parcel to departure storage: " + e.getMessage());
         }
     }
-
 
 
     /**
@@ -421,6 +459,11 @@ public class ParcelServiceImpl implements ParcelService {
             throw new TendrilExExceptionHandler(HttpStatus.BAD_REQUEST, "Driver is not an inter-city driver.");
         }
 
+        // Ensure the parcel has been collected from the destination storage 
+        if (!parcel.getStatus().equals(ParcelStatus.IN_TRANSIT_TO_DESTINATION_STORAGE)) {
+            throw new TendrilExExceptionHandler(HttpStatus.BAD_REQUEST, "Parcel has not been collected yet from the destination storage");
+        }
+
         try {
             // Find or create the storage in the destination city
             String recipientCity = parcel.getRecipient().getUser().getCity();
@@ -428,7 +471,10 @@ public class ParcelServiceImpl implements ParcelService {
 
             // Associate the parcel with the storage and update its status
             parcel.setStorage(storage);
-            parcel.setStatus(ParcelStatus.DELIVERED_TO_DESTINATION_STORAGE);
+            // parcel.setStatus(ParcelStatus.DELIVERED_TO_DESTINATION_STORAGE);
+            parcel.setStatus(ParcelStatus.AWAITING_INTRA_CITY_PICKUP);
+
+
             return parcelRepository.save(parcel);
 
         } catch (Exception e) {
@@ -459,6 +505,11 @@ public class ParcelServiceImpl implements ParcelService {
         // Ensure the driver is an intra-city driver
         if (driver.getDriverType() != DriverType.INTRA_CITY) {
             throw new TendrilExExceptionHandler(HttpStatus.BAD_REQUEST, "Driver is not an intra-city driver.");
+        }
+
+        // Ensure the parcel has been picked up from the locker 
+        if (!parcel.getStatus().equals(ParcelStatus.IN_TRANSIT_TO_RECIPIENT)) {
+            throw new TendrilExExceptionHandler(HttpStatus.BAD_REQUEST, "Parcel has not been picked up yet from the locker");
         }
 
         try {
@@ -510,9 +561,12 @@ public class ParcelServiceImpl implements ParcelService {
             throw new TendrilExExceptionHandler(HttpStatus.BAD_REQUEST, "Transaction code has expired");
         }
 
-        // Mark the parcel as awaiting driver assignment
-        parcel.setStatus(ParcelStatus.AWAITING_DRIVER_ASSIGNMENT);
-
+        // Mark the parcel as awaiting the appropriate driver assignment based on its type
+        if (parcel.getParcelType() == ParcelType.INTRA_CITY) {
+            parcel.setStatus(ParcelStatus.AWAITING_INTRA_CITY_PICKUP);
+        } else if (parcel.getParcelType() == ParcelType.INTER_CITY) {
+            parcel.setStatus(ParcelStatus.AWAITING_INTRA_CITY_PICKUP); // Intra-city driver will first take it to departure storage
+        }
         // Save the updated parcel
         return parcelRepository.save(parcel);
     }

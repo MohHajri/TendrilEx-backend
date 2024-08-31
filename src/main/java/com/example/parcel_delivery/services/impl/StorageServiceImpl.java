@@ -91,7 +91,9 @@ public class StorageServiceImpl implements StorageService {
      */
     @Override
     public List<Parcel> getParcelsForReturnTrip(String city, Pageable pageable) {
-        return storageRepository.findParcelsByCityAndStatus(city, ParcelStatus.DELIVERED_TO_DEPARTURE_STORAGE, pageable);
+        // return storageRepository.findParcelsByCityAndStatus(city, ParcelStatus.DELIVERED_TO_DEPARTURE_STORAGE, pageable);
+        return storageRepository.findParcelsByCityAndStatus(city, ParcelStatus.AWAITING_INTER_CITY_PICKUP, pageable);
+
     }
 
 }

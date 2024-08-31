@@ -138,8 +138,8 @@ public class ParcelRobot {
             try {
 
                 Parcel parcel = parcelService.sendNewParcel(dto);
-                // Simulate the drop-off process to update the status to 'AWAITING_DRIVER_ASSIGNMENT'
-                 parcelService.dropOffParcelInCabinet(parcel.getId(), parcel.getTransactionCode());
+                // Simulate the drop-off process; status will be updated based on parcel type
+                parcelService.dropOffParcelInCabinet(parcel.getId(), parcel.getTransactionCode());
 
                 // Mark this customer as having received a parcel from this robot
                 sentCustomers.add(customer.getId());
@@ -186,22 +186,36 @@ public class ParcelRobot {
     private ParcelReqDTO createRandomParcelReqDTO(Customer customer, String robotUsername) {
         ParcelReqDTO dto = new ParcelReqDTO();
     
-        // Set DTO fields for sender (robot)
-        dto.setSenderName(robotUsername);
-        
-        Point senderLocation;
+        // Randomly decide if the sender and recipient are in different cities
+        String senderCity;
         if (robotUsername.equals("robotUserHelsinki")) {
-            senderLocation = new GeometryFactory().createPoint(new org.locationtech.jts.geom.Coordinate(24.945831, 60.192059)); // Helsinki location
+            senderCity = random.nextBoolean() ? "Helsinki" : "Oulu";  // Randomly choose between Helsinki and Oulu
         } else if (robotUsername.equals("robotUserOulu")) {
-            senderLocation = new GeometryFactory().createPoint(new org.locationtech.jts.geom.Coordinate(25.46816, 65.01236)); // Oulu location
+            senderCity = random.nextBoolean() ? "Oulu" : "Helsinki";  // Randomly choose between Oulu and Helsinki
         } else {
             throw new TendrilExExceptionHandler(HttpStatus.INTERNAL_SERVER_ERROR, "Unknown robot user");
         }
+    
+        // 30% chance of switching the city even if they match, to encourage some INTER_CITY parcels
+        if (senderCity.equals(customer.getUser().getCity()) && random.nextDouble() < 0.5) {
+            senderCity = senderCity.equals("Helsinki") ? "Oulu" : "Helsinki";  // Switch city with 50% probability
+        }
+    
+        // Set DTO fields for sender (robot)
+        dto.setSenderName(robotUsername);
+    
+        // Update the sender's location based on the chosen senderCity
+        Point senderLocation;
+        if (senderCity.equals("Helsinki")) {
+            senderLocation = new GeometryFactory().createPoint(new org.locationtech.jts.geom.Coordinate(24.945831, 60.192059)); // Helsinki location
+        } else {
+            senderLocation = new GeometryFactory().createPoint(new org.locationtech.jts.geom.Coordinate(25.46816, 65.01236)); // Oulu location
+        }
         senderLocation.setSRID(4326); // Ensure SRID is set correctly
-        
+    
         dto.setSenderLatitude(String.valueOf(senderLocation.getY()));
         dto.setSenderLongitude(String.valueOf(senderLocation.getX()));
-        dto.setSenderCity(customer.getUser().getCity());
+        dto.setSenderCity(senderCity);
         dto.setSenderPhoneNo("0401234567");
         dto.setSenderEmail("sender@example.com");
     
@@ -209,7 +223,7 @@ public class ParcelRobot {
         dto.setRecipientName(customer.getUser().getFirstName() + " " + customer.getUser().getLastName());
         dto.setRecipientAddress(customer.getUser().getAddress());
         dto.setRecipientPostcode(customer.getUser().getPostcode());
-        dto.setRecipientCity(customer.getUser().getCity());
+        dto.setRecipientCity(customer.getUser().getCity()); // Recipient city remains the same
         dto.setRecipientPhoneNo(customer.getUser().getPhoneNumber());
         dto.setRecipientEmail(customer.getUser().getEmail());
     
@@ -226,10 +240,10 @@ public class ParcelRobot {
     
         // Select an available locker and cabinet
         List<ParcelLocker> availableLockers = parcelLockerRepo.getFiveNearestAvailablelockers(senderLocation);
-        
+    
         // Ensure the list of lockers is unique
         Set<ParcelLocker> uniqueLockers = new HashSet<>(availableLockers);
-        
+    
         if (!uniqueLockers.isEmpty()) {
             // Randomly select one of the nearest available lockers
             ParcelLocker selectedLocker = uniqueLockers.stream().skip(random.nextInt(uniqueLockers.size())).findFirst().orElse(null);
@@ -242,8 +256,7 @@ public class ParcelRobot {
         validateParcelData(dto);
     
         return dto;
-    }    
-
+    }
 
     /**
      * Validates the parcel data to ensure that all measurements and weights are positive.

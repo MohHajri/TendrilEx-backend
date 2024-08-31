@@ -76,4 +76,37 @@ public class DriverServiceImpl implements DriverService {
                 .orElseThrow(() -> new TendrilExExceptionHandler(HttpStatus.NOT_FOUND, "Driver not found"));
     }
 
+     /**
+     * Checks if a driver has parcels assigned.
+     * @param driver The driver to check.
+     * @return true if the driver has parcels assigned, false otherwise.
+     */
+    @Override
+    public boolean hasParcelsAssigned(Driver driver) {
+        Long parcelCount = driverRepository.countParcelsAssignedToDriver(driver.getId());
+        return parcelCount > 0;
+    }
+
+
+     /**
+     * Marks a driver as unavailable if they have no parcels assigned.
+     * @param driverId The ID of the driver to be marked as unavailable.
+     * @throws TendrilExExceptionHandler if the driver is not found or has parcels assigned.
+     */
+    @Override
+    public void markDriverAsUnavailable(Long driverId) {
+        Driver driver = driverRepository.findById(driverId)
+                .orElseThrow(() -> new TendrilExExceptionHandler(HttpStatus.NOT_FOUND, "Driver not found"));
+
+        // Check if the driver has parcels assigned
+        if (hasParcelsAssigned(driver)) {
+            throw new TendrilExExceptionHandler(HttpStatus.BAD_REQUEST, "Driver cannot be marked as unavailable because they have parcels assigned");
+        }
+
+        driver.setIsAvailable(false);
+        driverRepository.save(driver);
+    }
+
+
+
 }

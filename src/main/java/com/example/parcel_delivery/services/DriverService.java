@@ -17,6 +17,11 @@ void updateDriverAvailability(Driver driver, Boolean isAvailable);
 
     Driver getAuthenticatedDriver();
 
+    boolean hasParcelsAssigned(Driver driver);
+
+    void markDriverAsUnavailable(Long driverId);
+
+
 
 
    
