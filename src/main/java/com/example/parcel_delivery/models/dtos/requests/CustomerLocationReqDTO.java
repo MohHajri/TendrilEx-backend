@@ -1,6 +1,5 @@
 package com.example.parcel_delivery.models.dtos.requests;
 
-
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import lombok.AllArgsConstructor;
@@ -13,13 +12,13 @@ import lombok.NoArgsConstructor;
 public class CustomerLocationReqDTO {
 
     @NotBlank(message = "Recipient address is mandatory")
-    private String senderAddress;
+    private String customerAddress;
 
     @NotBlank(message = "Recipient postcode is mandatory")
     @Pattern(regexp = "\\d{5}", message = "Invalid postcode")
-    private String senderPostcode;
+    private String cusomterPostcode;
 
     @NotBlank(message = "Recipient city is mandatory")
-    private String senderCity;
-    
+    private String customerCity;
+
 }

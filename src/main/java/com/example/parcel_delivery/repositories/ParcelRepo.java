@@ -18,43 +18,54 @@ import com.example.parcel_delivery.models.enums.ParcelType;
 
 public interface ParcelRepo extends JpaRepository<Parcel, Long> {
 
-    @Modifying
-    @Query("UPDATE Parcel p SET p.idempotencyKey = null, p.idempotencyKeyCreatedAt = null WHERE p.idempotencyKeyCreatedAt < :threshold")
-    void nullifyOldIdempotencyKeys(LocalDateTime threshold);
+        @Modifying
+        @Query("UPDATE Parcel p SET p.idempotencyKey = null, p.idempotencyKeyCreatedAt = null WHERE p.idempotencyKeyCreatedAt < :threshold")
+        void nullifyOldIdempotencyKeys(LocalDateTime threshold);
 
-    Optional<Parcel> findByIdempotencyKey(String idempotencyKey);
+        Optional<Parcel> findByIdempotencyKey(String idempotencyKey);
 
-    List <Parcel> findBySenderId(Long id);
+        List<Parcel> findBySenderId(Long id);
 
-    List <Parcel> findByRecipientId(Long id);
+        List<Parcel> findByRecipientId(Long id);
 
-    Optional<Parcel> findByIdAndSenderId(Long id, Long senderId);
+        Optional<Parcel> findByIdAndSenderId(Long id, Long senderId);
 
-    Optional<Parcel> findByIdAndRecipientId(Long id, Long recipientId);
+        Optional<Parcel> findByIdAndRecipientId(Long id, Long recipientId);
 
-    Page<Parcel> findByStatus(ParcelStatus status, Pageable pageable);
+        Page<Parcel> findByStatus(ParcelStatus status, Pageable pageable);
 
-    Long countByDriver(Driver driver);
+        Long countByDriver(Driver driver);
 
-    @Query("SELECT p FROM Parcel p WHERE p.driver.id = :driverId AND p.status = :status")
-    List<Parcel> findByDriverIdAndStatus(@Param("driverId") Long driverId, @Param("status") ParcelStatus status);
+        @Query("SELECT p FROM Parcel p WHERE p.driver.id = :driverId AND p.status = :status")
+        List<Parcel> findByDriverIdAndStatus(@Param("driverId") Long driverId, @Param("status") ParcelStatus status);
 
-    @Query("SELECT p FROM Parcel p WHERE p.recipient.id = :recipientId AND p.status = :status")
-    List<Parcel> findByRecipientIdAndStatus(@Param("recipientId") Long recipientId, @Param("status") ParcelStatus status);
+        @Query("SELECT p FROM Parcel p WHERE p.recipient.id = :recipientId AND p.status = :status")
+        List<Parcel> findByRecipientIdAndStatus(@Param("recipientId") Long recipientId,
+                        @Param("status") ParcelStatus status);
 
-    @Query("SELECT p FROM Parcel p WHERE p.driver.id = :driverId")
-    List<Parcel> findByDriverId(@Param("driverId") Long driverId);
+        @Query("SELECT p FROM Parcel p WHERE p.driver.id = :driverId")
+        List<Parcel> findByDriverId(@Param("driverId") Long driverId);
 
-    @Query("SELECT p FROM Parcel p WHERE p.driver.id = :driverId AND p.parcelType = :parcelType")
-    List<Parcel> findByDriverIdAndParcelType(@Param("driverId") Long driverId, @Param("parcelType") ParcelType parcelType);
+        @Query("SELECT p FROM Parcel p WHERE p.driver.id = :driverId AND p.parcelType = :parcelType")
+        List<Parcel> findByDriverIdAndParcelType(@Param("driverId") Long driverId,
+                        @Param("parcelType") ParcelType parcelType);
 
-    Optional<Parcel> findByTransactionCode(Integer transactionCode);
+        Optional<Parcel> findByTransactionCode(Integer transactionCode);
 
-    Long countByStatus(ParcelStatus status);
+        Long countByStatus(ParcelStatus status);
 
-    @Query("SELECT p FROM Parcel p WHERE p.status IN :statuses")
-    Page<Parcel> findByStatusIn(@Param("statuses") List<ParcelStatus> statuses, Pageable pageable);
+        @Query("SELECT p FROM Parcel p WHERE p.status IN :statuses")
+        Page<Parcel> findByStatusIn(@Param("statuses") List<ParcelStatus> statuses, Pageable pageable);
 
+        Optional<Parcel> findByIdAndDriverId(Long id, Long driverId);
 
+        List<Parcel> findByStorageId(Long storageId);
+
+        List<Parcel> findByStorageIdAndParcelType(Long storageId, ParcelType intraCity);
+
+        @Query("SELECT p FROM Parcel p WHERE p.storage.city = :city AND p.status = :status")
+        List<Parcel> findParcelsByCityAndStatus(@Param("city") String city,
+                        @Param("status") ParcelStatus status,
+                        Pageable pageable);
 
 }

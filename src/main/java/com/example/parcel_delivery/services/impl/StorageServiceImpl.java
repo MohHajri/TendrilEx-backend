@@ -1,15 +1,11 @@
 package com.example.parcel_delivery.services.impl;
 
-import java.util.List;
-
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.example.parcel_delivery.models.entities.Parcel;
 import com.example.parcel_delivery.models.entities.Storage;
-import com.example.parcel_delivery.models.enums.ParcelStatus;
 import com.example.parcel_delivery.repositories.StorageRepo;
 import com.example.parcel_delivery.services.StorageService;
 import com.example.parcel_delivery.exceptions.TendrilExExceptionHandler;
@@ -53,17 +49,19 @@ public class StorageServiceImpl implements StorageService {
     @Override
     public Storage findCityStorage(String city) {
         return storageRepository.findByCity(city)
-                .orElseThrow(() -> new TendrilExExceptionHandler(HttpStatus.NOT_FOUND, "No storage found in city: " + city));
+                .orElseThrow(
+                        () -> new TendrilExExceptionHandler(HttpStatus.NOT_FOUND, "No storage found in city: " + city));
     }
 
     /**
-     * Finds the storage for the given city. If it does not exist, a new storage is created.
+     * Finds the storage for the given city. If it does not exist, a new storage is
+     * created.
      *
      * @param city The city where the storage is located.
      * @return The found or newly created storage.
      */
     @Override
-    public Storage findOrCreateStorageForCity(String city) { 
+    public Storage findOrCreateStorageForCity(String city) {
         return storageRepository.findByCity(city)
                 .orElseGet(() -> createStorageForCity(city));
     }
@@ -79,21 +77,6 @@ public class StorageServiceImpl implements StorageService {
         storage.setCity(city);
 
         return storageRepository.save(storage);
-    }
-
-
-    /**
-     * Retrieves parcels that are currently in storage and are ready for a return trip.
-     *
-     * @param city The city where the storage is located.
-     * @param pageable Pagination information for limiting the number of parcels returned.
-     * @return A list of parcels ready for a return trip.
-     */
-    @Override
-    public List<Parcel> getParcelsForReturnTrip(String city, Pageable pageable) {
-        // return storageRepository.findParcelsByCityAndStatus(city, ParcelStatus.DELIVERED_TO_DEPARTURE_STORAGE, pageable);
-        return storageRepository.findParcelsByCityAndStatus(city, ParcelStatus.AWAITING_INTER_CITY_PICKUP, pageable);
-
     }
 
 }

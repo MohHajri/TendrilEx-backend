@@ -23,51 +23,73 @@ public class DriverServiceImpl implements DriverService {
     @Autowired
     private UserService userService;
 
+    /**
+     * This method retreives a driver by it ID
+     * 
+     * @param driverId
+     */
     @Override
-    public Driver findAvailableDriverInCity(DriverType driverType, String city) {
-        List<Driver> availableDrivers = driverRepository.findAvailableDriversByTypeAndCity(driverType, city);
-        if (availableDrivers.isEmpty()) {
-            throw new TendrilExExceptionHandler(HttpStatus.NOT_FOUND, "No available driver found in " + city + " for " + driverType + " type");
-        }
-        return availableDrivers.get(0); // Assign the first available driver
+    public Driver getDriverById(Long driverId) {
+        return driverRepository.findById(
+                driverId)
+                .orElseThrow(() -> new TendrilExExceptionHandler(HttpStatus.NOT_FOUND,
+                        "Customer not found with id: " + driverId));
     }
 
-    @Override
-    public List<Driver> findAllAvailableDriversInCity(DriverType driverType, String city) {
-        return driverRepository.findAvailableDriversByTypeAndCity(driverType, city);
-    }
-
+    /**
+     * This method is used by the batch system to know how many available drivers
+     * there are based on the their city and type
+     * 
+     * @param driverType
+     * @param city
+     */
     @Override
     public Long getAvailableDriverCount(DriverType driverType, String city) {
         return driverRepository.countAvailableDriversByTypeAndCity(driverType, city);
     }
 
+    /**
+     * This method is used by the batch system to update driver availability
+     * Normally, drivers right now can not update their availability status by
+     * themselves
+     * 
+     * @param driver
+     * @param isAvailable
+     */
     @Override
     public void updateDriverAvailability(Driver driver, Boolean isAvailable) {
         driver.setIsAvailable(isAvailable);
-        driverRepository.save(driver); // Persist the updated availability status
+        driverRepository.save(driver);
     }
 
-    
     /**
-     * This method retrieves all active and available intra-city drivers in a specific city.
+     * This method retrieves all active and available intra-city drivers in a
+     * specific city.
+     * 
      * @param city The city to search for intra-city drivers.
-     * @return A list of active and available intra-city drivers in the specified city.
+     * @return A list of active and available intra-city drivers in the specified
+     *         city.
      */
     public List<Driver> getActiveAvailableIntraCityDrivers(String city) {
-        return findAllAvailableDriversInCity(DriverType.INTRA_CITY, city);
+        return driverRepository.findAvailableDriversByTypeAndCity(DriverType.INTRA_CITY, city);
     }
 
     /**
-     * This method retrieves all active and available inter-city drivers in a specific city.
+     * This method retrieves all active and available inter-city drivers in a
+     * specific city.
+     * 
      * @param city The city to search for inter-city drivers.
-     * @return A list of active and available inter-city drivers in the specified city.
+     * @return A list of active and available inter-city drivers in the specified
+     *         city.
      */
     public List<Driver> getActiveAvailableInterCityDrivers(String city) {
-        return findAllAvailableDriversInCity(DriverType.INTER_CITY, city);
+        return driverRepository.findAvailableDriversByTypeAndCity(DriverType.INTER_CITY, city);
     }
 
-
+    /**
+     * This method is important. it gets the authenticated user associated with the
+     * driver
+     */
     public Driver getAuthenticatedDriver() {
         User authenticatedUser = userService.getAuthenticatedUser();
         Long userId = authenticatedUser.getId();
@@ -76,8 +98,10 @@ public class DriverServiceImpl implements DriverService {
                 .orElseThrow(() -> new TendrilExExceptionHandler(HttpStatus.NOT_FOUND, "Driver not found"));
     }
 
-     /**
+    /**
      * Checks if a driver has parcels assigned.
+     * It is used by the batch assignment system
+     * 
      * @param driver The driver to check.
      * @return true if the driver has parcels assigned, false otherwise.
      */
@@ -87,26 +111,29 @@ public class DriverServiceImpl implements DriverService {
         return parcelCount > 0;
     }
 
-
-     /**
-     * Marks a driver as unavailable if they have no parcels assigned.
+    /**
+     * Method used tp set a driver as unavailable if they have no parcels assigned.
+     * It is an emergency operation called by the driver but as for now they have to
+     * be have to have no parcles assigned to do so
+     * 
      * @param driverId The ID of the driver to be marked as unavailable.
-     * @throws TendrilExExceptionHandler if the driver is not found or has parcels assigned.
+     * @throws TendrilExExceptionHandler if the driver is not found or has parcels
+     *                                   assigned.
      */
     @Override
-    public void markDriverAsUnavailable(Long driverId) {
+    public Driver markDriverAsUnavailable(Long driverId) {
         Driver driver = driverRepository.findById(driverId)
                 .orElseThrow(() -> new TendrilExExceptionHandler(HttpStatus.NOT_FOUND, "Driver not found"));
 
         // Check if the driver has parcels assigned
         if (hasParcelsAssigned(driver)) {
-            throw new TendrilExExceptionHandler(HttpStatus.BAD_REQUEST, "Driver cannot be marked as unavailable because they have parcels assigned");
+            throw new TendrilExExceptionHandler(HttpStatus.BAD_REQUEST,
+                    "Driver cannot be marked as unavailable because they have parcels assigned");
         }
 
         driver.setIsAvailable(false);
         driverRepository.save(driver);
+        return driver;
     }
-
-
 
 }

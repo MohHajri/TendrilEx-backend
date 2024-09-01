@@ -37,9 +37,10 @@ public class LocationUtils {
 
     public Point geocodeLocation(CustomerLocationReqDTO lockerReqDTO) {
         try {
-            String addressStr = lockerReqDTO.getSenderAddress() + ", " +
-                                lockerReqDTO.getSenderPostcode() + " " +
-                                lockerReqDTO.getSenderCity() + ", Finland";
+
+            String addressStr = lockerReqDTO.getCustomerAddress() + ", " +
+                    lockerReqDTO.getCusomterPostcode() + " " +
+                    lockerReqDTO.getCustomerCity() + ", Finland";
             String encodedAddress = URLEncoder.encode(addressStr, "UTF-8");
             String requestUri = GEOCODING_RESOURCE + "?key=" + API_KEY + "&address=" + encodedAddress;
 
@@ -51,9 +52,11 @@ public class LocationUtils {
 
             HttpResponse<String> httpResponse = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofString());
             String response = httpResponse.body();
+            System.out.println("Geocoding API Response: " + response);
 
             if (httpResponse.statusCode() != 200) {
-                throw new RuntimeException("Geocoding API request failed with status code: " + httpResponse.statusCode());
+                throw new RuntimeException(
+                        "Geocoding API request failed with status code: " + httpResponse.statusCode());
             }
 
             ObjectMapper mapper = new ObjectMapper();
@@ -65,7 +68,7 @@ public class LocationUtils {
                 double latitude = location.get("lat").asDouble();
                 double longitude = location.get("lng").asDouble();
                 Point point = geometryFactory.createPoint(new Coordinate(longitude, latitude));
-                point.setSRID(4326); 
+                point.setSRID(4326);
                 return point;
             } else {
                 throw new RuntimeException("Geocoding API returned no results.");

@@ -2,6 +2,8 @@ package com.example.parcel_delivery.services;
 
 import java.util.List;
 
+import org.springframework.data.domain.Pageable;
+
 import com.example.parcel_delivery.models.dtos.requests.ParcelReqDTO;
 import com.example.parcel_delivery.models.entities.Driver;
 import com.example.parcel_delivery.models.entities.Parcel;
@@ -17,9 +19,9 @@ public interface ParcelService {
 
     Parcel getByParcelIdAndRecipientId(Long id, Long recipientId);
 
-    List<Parcel> getSentParcelsByCustomerId(Long id);
+    List<Parcel> getParcelsBySenderId(Long id);
 
-    List<Parcel> getReceivedParcelsByCustomerId(Long id);
+    List<Parcel> getParcelsByRecipientId(Long id);
 
     List<Parcel> findParcelsForDriverAssignment(int page, int size);
 
@@ -45,10 +47,18 @@ public interface ParcelService {
 
     List<Parcel> getParcelsAssignedToInterCityDriver(Long driverId);
 
-    List<Parcel> getParcelsInStorageAssignedToInterDriver(Long driverId);
-
-    List<Parcel> getParcelsInStorageAssignedToIntraDriver(Long driverId);
-
     Parcel dropOffParcelInCabinet(Long parcelId, Integer transactionCode);
+
+    Parcel getByParcelIdAndDriverId(Long id, Long driverId);
+
+    List<Parcel> getParcelsAssignedToDriver(Long driverId);
+
+    List<Parcel> getAllParcelsInStorage(Long storageId);
+
+    List<Parcel> getIntraCityParcelsInStorage(Long storageId);
+
+    List<Parcel> getInterCityParcelsInStorage(Long storageId);
+
+    List<Parcel> getParcelsForReturnTrip(String city, Pageable pageable);
 
 }

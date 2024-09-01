@@ -33,14 +33,14 @@ public class CustomerServiceImpl implements CustomerService {
         return customerRepository.findById(customerId)
                 .orElseThrow(() -> new TendrilExExceptionHandler(HttpStatus.NOT_FOUND,
                         "Customer not found with id: " + customerId));
-                    }
+    }
 
     @Override
     public Customer getCustomerByUserId(Long userId) {
         return customerRepository.findByUserId(userId)
                 .orElseThrow(() -> new TendrilExExceptionHandler(HttpStatus.NOT_FOUND,
                         "Customer not found with user id: " + userId));
-                    }
+    }
 
     @Override
     public Customer getCustomerByAuthenticatedUser() {
@@ -49,8 +49,8 @@ public class CustomerServiceImpl implements CustomerService {
         return customerRepository.findByUserId(authUserId)
                 .orElseThrow(() -> new TendrilExExceptionHandler(HttpStatus.NOT_FOUND,
                         "Customer not found with user id: " + authUserId));
-                    
-                    }
+
+    }
 
     @Override
     public Optional<Customer> findCustomerByPhoneNumber(String phonenNumber) {
@@ -65,12 +65,10 @@ public class CustomerServiceImpl implements CustomerService {
         Point senderPoint = locationUtils.geocodeLocation(customerLocationReqDTO);
 
         customer.getUser().setUserPoint(senderPoint);
-        customer.getUser().setAddress(customerLocationReqDTO.getSenderAddress());
-        customer.getUser().setPostcode(customerLocationReqDTO.getSenderPostcode());
-        customer.getUser().setCity(customerLocationReqDTO.getSenderCity());
+        customer.getUser().setAddress(customerLocationReqDTO.getCustomerAddress());
+        customer.getUser().setPostcode(customerLocationReqDTO.getCusomterPostcode());
+        customer.getUser().setCity(customerLocationReqDTO.getCustomerCity());
         return customerRepository.save(customer);
-     }
+    }
 
-    
-    
 }

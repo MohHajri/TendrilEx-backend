@@ -7,11 +7,13 @@ import com.example.parcel_delivery.models.enums.DriverType;
 
 public interface DriverService {
 
-Driver findAvailableDriverInCity(DriverType driverType, String city);
+    Driver getDriverById(Long driverId);
 
-void updateDriverAvailability(Driver driver, Boolean isAvailable);
+    void updateDriverAvailability(Driver driver, Boolean isAvailable);
 
-     List<Driver> findAllAvailableDriversInCity(DriverType driverType, String city);
+    List<Driver> getActiveAvailableIntraCityDrivers(String city);
+
+    List<Driver> getActiveAvailableInterCityDrivers(String city);
 
     Long getAvailableDriverCount(DriverType driverType, String city);
 
@@ -19,10 +21,6 @@ void updateDriverAvailability(Driver driver, Boolean isAvailable);
 
     boolean hasParcelsAssigned(Driver driver);
 
-    void markDriverAsUnavailable(Long driverId);
+    Driver markDriverAsUnavailable(Long driverId);
 
-
-
-
-   
 }

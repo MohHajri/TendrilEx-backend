@@ -1,7 +1,5 @@
 package com.example.parcel_delivery.services;
 
-import java.util.List;
-import org.springframework.data.domain.Pageable;
 import com.example.parcel_delivery.models.entities.Parcel;
 
 import com.example.parcel_delivery.models.entities.Storage;
@@ -14,7 +12,4 @@ public interface StorageService {
 
     Storage findOrCreateStorageForCity(String city);
 
-    List<Parcel> getParcelsForReturnTrip(String city, Pageable pageable);
-
-    
 }

@@ -69,7 +69,6 @@ public class ParcelServiceImpl implements ParcelService {
     @Autowired
     private DriverService driverService;
 
-
     @Override
     public Parcel sendNewParcel(ParcelReqDTO parcelReqDTO) {
         try {
@@ -82,11 +81,13 @@ public class ParcelServiceImpl implements ParcelService {
             // Get authenticated customer and act as the sender
             Customer sender = customerService.getCustomerByAuthenticatedUser();
             if (sender == null) {
-                throw new TendrilExExceptionHandler(HttpStatus.FORBIDDEN, "You are not allowed to access this resource");
+                throw new TendrilExExceptionHandler(HttpStatus.FORBIDDEN,
+                        "You are not allowed to access this resource");
             }
 
             // Find recipient customer based on phone number
-            Optional<Customer> recipientOpt = customerService.findCustomerByPhoneNumber(parcelReqDTO.getRecipientPhoneNo());
+            Optional<Customer> recipientOpt = customerService
+                    .findCustomerByPhoneNumber(parcelReqDTO.getRecipientPhoneNo());
             Customer recipient = null;
             boolean isRecipientRegistered = false;
 
@@ -119,7 +120,8 @@ public class ParcelServiceImpl implements ParcelService {
             parcel.setParcelType(parcelType);
             parcel.setStatus(ParcelStatus.CREATED);
             parcel.setCabinet(reservedCabinet);
-            parcel.setSelectedLockerLocation(ParcelLockerService.getParcelLockerById(parcelReqDTO.getSelectedLockerId()));
+            parcel.setSelectedLockerLocation(
+                    ParcelLockerService.getParcelLockerById(parcelReqDTO.getSelectedLockerId()));
             parcel.setTransactionCode(transactionCode);
             parcel.setTransactionCodeValidUntil(LocalDateTime.now().plusDays(12));
             parcel.setIdempotencyKey(parcelReqDTO.getIdempotencyKey());
@@ -179,125 +181,171 @@ public class ParcelServiceImpl implements ParcelService {
 
         } catch (DataIntegrityViolationException e) {
             // This will catch unique constraint violations
-            throw new TendrilExExceptionHandler(HttpStatus.CONFLICT, "Parcel with this idempotency key already exists.");
+            throw new TendrilExExceptionHandler(HttpStatus.CONFLICT,
+                    "Parcel with this idempotency key already exists.");
         }
     }
 
-
-    // Updated helper 
+    // Updated helper
     private ParcelType determineParcelType(String senderCity, ParcelReqDTO parcelReqDTO, Customer recipient) {
         String recipientCity;
-    
-        // If the recipient is registered, use their city; otherwise, use the city from ParcelReqDTO
+
+        // If the recipient is registered, use their city; otherwise, use the city from
+        // ParcelReqDTO
         if (recipient != null && recipient.getUser() != null) {
             recipientCity = recipient.getUser().getCity();
         } else {
             recipientCity = parcelReqDTO.getRecipientCity(); // Fallback to the city provided in the request DTO
         }
-    
+
         return senderCity.equals(recipientCity) ? ParcelType.INTRA_CITY : ParcelType.INTER_CITY;
     }
-    
 
-
+    /**
+     * Retrieves a specific parcel by its id
+     * 
+     * @param parcelId
+     * @return
+     */
     @Override
-    public Parcel getParcelById(Long id) {
-        return parcelRepository.
-                findById(id).
-                orElseThrow(() -> new TendrilExExceptionHandler(HttpStatus.NOT_FOUND, "No parcel found with id: " + id));
-          }
-
-    @Override
-    public List<Parcel> getSentParcelsByCustomerId(Long id) {
-            Long authCustomerId = customerService.getCustomerByAuthenticatedUser().getId();
-            if (authCustomerId != id) {
-                throw new TendrilExExceptionHandler(HttpStatus.FORBIDDEN, "You are not allowed to access this resource");
-            } 
-            return parcelRepository.findBySenderId(id);
+    public Parcel getParcelById(Long parcelId) {
+        return parcelRepository.findById(
+                parcelId).orElseThrow(
+                        () -> new TendrilExExceptionHandler(HttpStatus.NOT_FOUND,
+                                "No parcel found with id: " + parcelId));
     }
 
+    /**
+     * Retrieves parcels that are sent by a specified (customer)
+     * 
+     * @param customerId
+     * @return
+     */
     @Override
-    public List<Parcel> getReceivedParcelsByCustomerId(Long id) {
-            Long authCustomerId = customerService.getCustomerByAuthenticatedUser().getId();
-            if (authCustomerId != id) {
-                throw new TendrilExExceptionHandler(HttpStatus.FORBIDDEN, "You are not allowed to access this resource");
-            } 
-            return parcelRepository.findByRecipientId(id);
+    public List<Parcel> getParcelsBySenderId(Long customerId) {
+        Long authCustomerId = customerService.getCustomerByAuthenticatedUser().getId();
+        if (authCustomerId != customerId) {
+            throw new TendrilExExceptionHandler(HttpStatus.FORBIDDEN, "You are not allowed to access this resource");
+        }
+        return parcelRepository.findBySenderId(customerId);
+    }
+
+    /**
+     * Retrieves parcels that are recieved by a specified (customer)
+     * 
+     * @param customerId
+     * @return
+     */
+    @Override
+    public List<Parcel> getParcelsByRecipientId(Long customerId) {
+        Long authCustomerId = customerService.getCustomerByAuthenticatedUser().getId();
+        if (authCustomerId != customerId) {
+            throw new TendrilExExceptionHandler(HttpStatus.FORBIDDEN, "You are not allowed to access this resource");
+        }
+        return parcelRepository.findByRecipientId(customerId);
+    }
+
+    /**
+     * Retrieves all parcels assigned to a specific driver.
+     * 
+     * @param driverId
+     * @return
+     */
+    @Override
+    public List<Parcel> getParcelsAssignedToDriver(Long driverId) {
+        Long authDriverId = driverService.getAuthenticatedDriver().getId();
+        if (authDriverId != driverId) {
+            throw new TendrilExExceptionHandler(HttpStatus.FORBIDDEN, "You are not allowed to access this resource");
         }
 
+        return parcelRepository.findByDriverId(driverId);
+    }
+
+    /**
+     * Retrieves a specific parcel by its id and customer (sender) id.
+     * 
+     * @param id
+     * @param senderId
+     * 
+     * @return
+     */
     @Override
     public Parcel getByParcelIdAndSenderId(Long id, Long senderId) {
-        return parcelRepository.
-                findByIdAndSenderId(id, senderId)
-                .orElseThrow(() -> new TendrilExExceptionHandler(HttpStatus.NOT_FOUND, "No parcel found with id: " + id));
-       }
+        return parcelRepository.findByIdAndSenderId(id, senderId)
+                .orElseThrow(
+                        () -> new TendrilExExceptionHandler(HttpStatus.NOT_FOUND, "No parcel found with id: " + id));
+    }
 
+    /**
+     * Retrieves a specific parcel by its id and customer (recipient) id.
+     * 
+     * @param id
+     * @param recipientId
+     * 
+     * @return
+     */
     @Override
     public Parcel getByParcelIdAndRecipientId(Long id, Long recipientId) {
-        return parcelRepository.
-                findByIdAndRecipientId(id, recipientId)
-                .orElseThrow(() -> new TendrilExExceptionHandler(HttpStatus.NOT_FOUND, "No parcel found with id: " + id));
+        return parcelRepository.findByIdAndRecipientId(id, recipientId)
+                .orElseThrow(
+                        () -> new TendrilExExceptionHandler(HttpStatus.NOT_FOUND, "No parcel found with id: " + id));
 
-        }
-
-    @Override
-    @Transactional(propagation = Propagation.REQUIRES_NEW)  //why? to ensure that the transaction commits after processing each page. the status changes
-    public List<Parcel> findParcelsForDriverAssignment(int page, int size) {
-        Pageable pageable = PageRequest.of(page, size);
-        // Fetch parcels that are either awaiting intra-city or inter-city pickup
-        Page<Parcel> parcelPage = parcelRepository.findByStatusIn(
-            List.of(ParcelStatus.AWAITING_INTRA_CITY_PICKUP, ParcelStatus.AWAITING_INTER_CITY_PICKUP),
-            pageable
-        );
-        return parcelPage.getContent();
-    }
-    
-    @Override
-    public void save(Parcel parcel) {
-        parcelRepository.save(parcel);
-    }
-
-    @Override
-    public Long countParcelsByDriver(Driver driver) {
-        return parcelRepository.countByDriver(driver);
-    }
-
-    @Override 
-    public Long countParcelsByStatus(ParcelStatus status) {
-        return parcelRepository.countByStatus(status);
-    }
-
-
-    /**
-     * This endpoint retrieves parcels that are currently in storage and assigned to a specific driver.
-     * @param driverId
-     * @return
-     */
-    public List<Parcel> getParcelsInStorageAssignedToInterDriver(Long driverId) {
-        return parcelRepository.findByDriverIdAndStatus(driverId, ParcelStatus.AWAITING_INTER_CITY_PICKUP);
     }
 
     /**
-     * This endpoint retrieves parcels that are currently in storage and assigned to a specific driver.
-     * @param driverId
-     * @return
-     */
-    public List<Parcel> getParcelsInStorageAssignedToIntraDriver(Long driverId) {
-        return parcelRepository.findByDriverIdAndStatus(driverId, ParcelStatus.AWAITING_INTRA_CITY_PICKUP);
-    }
-
-
-    /**
-     * This endpoint retrieves parcels that have been delivered to a specific recipient.
+     * Retrieves a specific parcel by its id and customer (recipient) id.
+     * 
+     * @param id
      * @param recipientId
+     * 
      * @return
      */
-    public List<Parcel> getParcelsDeliveredToRecipient(Long recipientId) {
-        return parcelRepository.findByRecipientIdAndStatus(recipientId, ParcelStatus.DELIVERED_TO_RECIPIENT);
+    @Override
+    public Parcel getByParcelIdAndDriverId(Long id, Long driverId) {
+        return parcelRepository.findByIdAndDriverId(id,
+                driverId)
+                .orElseThrow(
+                        () -> new TendrilExExceptionHandler(HttpStatus.NOT_FOUND, "No parcel found with id: " + id));
+
     }
 
     /**
-     * This endpoint retrieves INTRA parcels that have not been assigned to any intra driver yet.
+     * Retrieves all parcels that are currently in a specific storage.
+     * 
+     * @param storageId
+     * @return List of parcels
+     */
+    @Override
+    public List<Parcel> getAllParcelsInStorage(Long storageId) {
+        return parcelRepository.findByStorageId(storageId);
+    }
+
+    /**
+     * Retrieves intra-city parcels that are currently in a specific storage.
+     * 
+     * @param storageId
+     * @return List of parcels
+     */
+    @Override
+    public List<Parcel> getIntraCityParcelsInStorage(Long storageId) {
+        return parcelRepository.findByStorageIdAndParcelType(storageId, ParcelType.INTRA_CITY);
+    }
+
+    /**
+     * Retrieves inter-city parcels that are currently in a specific storage.
+     * 
+     * @param storageId
+     * @return List of parcels
+     */
+    @Override
+    public List<Parcel> getInterCityParcelsInStorage(Long storageId) {
+        return parcelRepository.findByStorageIdAndParcelType(storageId, ParcelType.INTER_CITY);
+    }
+
+    /**
+     * This endpoint retrieves INTRA parcels that have not been assigned to any
+     * intra driver yet.
+     * 
      * @param page the page number to retrieve (zero-based index)
      * @param size the size of the page to retrieve
      * @return a paginated list of unassigned inter parcels
@@ -309,7 +357,9 @@ public class ParcelServiceImpl implements ParcelService {
     }
 
     /**
-     * This endpoint retrieves INTER parcels that have not been assigned to any inter driver yet.
+     * This endpoint retrieves INTER parcels that have not been assigned to any
+     * inter driver yet.
+     * 
      * @param page the page number to retrieve (zero-based index)
      * @param size the size of the page to retrieve
      * @return a paginated list of unassigned intra parcels
@@ -320,78 +370,178 @@ public class ParcelServiceImpl implements ParcelService {
         return parcelPage.getContent();
     }
 
-    
     /**
-     * This endpoint retrieves all parcels assigned to a specific driver.
+     * Retrieves INTRA parcels that that are assigned to a specified intra driver
+     * inter driver yet.
+     * 
      * @param driverId
      * @return
      */
-    public List<Parcel> getParcelsAssignedToDriver(Long driverId) {
-        return parcelRepository.findByDriverId(driverId);
+    @Override
+    public List<Parcel> getParcelsAssignedToIntraCityDriver(Long driverId) {
+        Driver driver = driverService.getAuthenticatedDriver();
+
+        // Ensure the driver is an intra-city driver
+        if (driver.getDriverType() != DriverType.INTRA_CITY) {
+            throw new TendrilExExceptionHandler(HttpStatus.BAD_REQUEST, "Driver is not an intra-city driver.");
+        }
+
+        return parcelRepository.findByDriverIdAndParcelType(driverId, ParcelType.INTRA_CITY);
     }
 
+    /**
+     * Retrieves INTER parcels that that are assigned to a specified inter driver
+     * inter driver yet.
+     * 
+     * @param driverId
+     * @return
+     */
+    @Override
+    public List<Parcel> getParcelsAssignedToInterCityDriver(Long driverId) {
+        Driver driver = driverService.getAuthenticatedDriver();
+
+        // Ensure the driver is an inter-city driver
+        if (driver.getDriverType() != DriverType.INTER_CITY) {
+            throw new TendrilExExceptionHandler(HttpStatus.BAD_REQUEST, "Driver is not an inter-city driver.");
+        }
+
+        return parcelRepository.findByDriverIdAndParcelType(driverId, ParcelType.INTER_CITY);
+    }
+
+    /**
+     * finds how many parcels a driver is assigned
+     * 
+     * @param driver
+     * 
+     * @return
+     */
+    @Override
+    public Long countParcelsByDriver(Driver driver) {
+        return parcelRepository.countByDriver(driver);
+    }
+
+    /**
+     * finds how many inter or intra parcels we have in the system
+     * 
+     * @param status
+     * 
+     * @return
+     */
+    @Override
+    public Long countParcelsByStatus(ParcelStatus status) {
+        return parcelRepository.countByStatus(status);
+    }
+
+    /**
+     * Retrieves all unassigned parcels both ( inter and intra parcels)
+     * 
+     * @param page
+     * @param size
+     * 
+     * @return
+     */
+    @Override
+    @Transactional(propagation = Propagation.REQUIRES_NEW) // why? to ensure that the transaction commits after
+                                                           // processing each page. the status changes
+    public List<Parcel> findParcelsForDriverAssignment(int page, int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        // Fetch parcels that are either awaiting intra-city or inter-city pickup
+        Page<Parcel> parcelPage = parcelRepository.findByStatusIn(
+                List.of(ParcelStatus.AWAITING_INTRA_CITY_PICKUP, ParcelStatus.AWAITING_INTER_CITY_PICKUP),
+                pageable);
+        return parcelPage.getContent();
+    }
+
+    /**
+     * Retrieves parcels that are currently in storage and are ready for a return
+     * trip.
+     *
+     * @param city     The city where the storage is located.
+     * @param pageable Pagination information for limiting the number of parcels
+     *                 returned.
+     * @return A list of parcels ready for a return trip.
+     */
+    @Override
+    public List<Parcel> getParcelsForReturnTrip(String city, Pageable pageable) {
+        return parcelRepository.findParcelsByCityAndStatus(city, ParcelStatus.AWAITING_INTER_CITY_PICKUP, pageable);
+
+    }
+
+    /**
+     * saves a parcel
+     * 
+     * @param parcel
+     * 
+     * @return
+     */
+    @Override
+    public void save(Parcel parcel) {
+        parcelRepository.save(parcel);
+    }
 
     @Override
     @Transactional
     public Parcel pickUpParcelFromLocker(Long parcelId, Integer transactionCode) {
         // Step 1: Authenticate the driver
         Driver driver = driverService.getAuthenticatedDriver();
-    
+
         // Step 2: Retrieve the parcel using the provided parcelId
         Parcel parcel = parcelRepository.findById(parcelId)
-                .orElseThrow(() -> new TendrilExExceptionHandler(HttpStatus.NOT_FOUND, "Parcel not found with id: " + parcelId));
-    
+                .orElseThrow(() -> new TendrilExExceptionHandler(HttpStatus.NOT_FOUND,
+                        "Parcel not found with id: " + parcelId));
+
         // Step 3: Validate the transaction code matches the parcel's transaction code
         if (!parcel.getTransactionCode().equals(transactionCode)) {
             throw new TendrilExExceptionHandler(HttpStatus.BAD_REQUEST, "Invalid transaction code for this parcel.");
         }
-    
+
         // Step 4: Ensure the transaction code is active
         if (!parcel.getTransactionCodeActive()) {
             throw new TendrilExExceptionHandler(HttpStatus.BAD_REQUEST, "Transaction code is inactive");
         }
-    
+
         // Step 5: Ensure the transaction code has not expired
         if (parcel.getTransactionCodeValidUntil().isBefore(LocalDateTime.now())) {
             throw new TendrilExExceptionHandler(HttpStatus.BAD_REQUEST, "Transaction code has expired");
         }
-    
+
         // Step 6: Ensure the parcel is assigned to the authenticated driver
         if (parcel.getDriver() == null || !parcel.getDriver().equals(driver)) {
             throw new TendrilExExceptionHandler(HttpStatus.FORBIDDEN, "Parcel is not assigned to this driver");
         }
-    
+
         // Step 7: Ensure the parcel is in a cabinet and awaiting pickup
         // if (!parcel.getStatus().equals(ParcelStatus.AWAITING_PICKUP)) {
-            if (!parcel.getStatus().equals(ParcelStatus.AWAITING_INTRA_CITY_PICKUP)) {
+        if (!parcel.getStatus().equals(ParcelStatus.AWAITING_INTRA_CITY_PICKUP)) {
             throw new TendrilExExceptionHandler(HttpStatus.BAD_REQUEST, "Parcel is not available for pickup");
         }
-    
+
         // Step 8: Update parcel status based on its type (intra-city or inter-city)
         if (parcel.getParcelType() == ParcelType.INTER_CITY) {
             parcel.setStatus(ParcelStatus.IN_TRANSIT_TO_DEPARTURE_STORAGE);
         } else {
             parcel.setStatus(ParcelStatus.IN_TRANSIT_TO_RECIPIENT);
         }
-    
+
         // Step 9: Mark the cabinet as free and clear it from the parcel
         Cabinet cabinet = parcel.getCabinet();
         if (cabinet != null) {
             cabinet.setStatus(CabinetStatus.FREE);
-            parcel.setCabinet(null);  // Clear the cabinet from the parcel
-            cabinetService.save(cabinet);  // Save the cabinet status
+            parcel.setCabinet(null); // Clear the cabinet from the parcel
+            cabinetService.save(cabinet); // Save the cabinet status
         }
-    
+
         // Step 10: Deactivate the transaction code
         parcel.setTransactionCodeActive(false);
-    
+
         // Step 11: Save the updated parcel
         return parcelRepository.save(parcel);
     }
 
     /**
      * Handles the storage of an inter-city parcel in the departure storage.
-     * This occurs when the parcel is being sent from one city to another and needs to be stored in the sender's city.
+     * This occurs when the parcel is being sent from one city to another and needs
+     * to be stored in the sender's city.
      * 
      * @param parcelId The ID of the parcel to be processed.
      * @return The updated Parcel after processing.
@@ -403,16 +553,12 @@ public class ParcelServiceImpl implements ParcelService {
 
         // Retrieve the parcel using the provided parcelId
         Parcel parcel = parcelRepository.findById(parcelId)
-                .orElseThrow(() -> new TendrilExExceptionHandler(HttpStatus.NOT_FOUND, "Parcel not found with id: " + parcelId));
+                .orElseThrow(() -> new TendrilExExceptionHandler(HttpStatus.NOT_FOUND,
+                        "Parcel not found with id: " + parcelId));
 
         // Ensure the driver is an intra-city driver
         if (driver.getDriverType() != DriverType.INTRA_CITY) {
             throw new TendrilExExceptionHandler(HttpStatus.BAD_REQUEST, "Driver is not an intra-city driver.");
-        }
-
-        // Ensure the parcel is of type INTER_CITY
-        if (parcel.getParcelType() != ParcelType.INTER_CITY) {
-            throw new TendrilExExceptionHandler(HttpStatus.BAD_REQUEST, "Parcel is not an inter-city parcel.");
         }
 
         // Ensure the parcel has been picked up from the locker
@@ -427,19 +573,19 @@ public class ParcelServiceImpl implements ParcelService {
             // parcel.setStatus(ParcelStatus.DELIVERED_TO_DEPARTURE_STORAGE);
             parcel.setStatus(ParcelStatus.AWAITING_INTER_CITY_PICKUP);
 
-
             return parcelRepository.save(parcel);
 
         } catch (Exception e) {
             // Handle any exceptions that occur during the delivery process
-            throw new TendrilExExceptionHandler(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to deliver parcel to departure storage: " + e.getMessage());
+            throw new TendrilExExceptionHandler(HttpStatus.INTERNAL_SERVER_ERROR,
+                    "Failed to deliver parcel to departure storage: " + e.getMessage());
         }
     }
 
-
     /**
      * Handles delivery of an inter-city parcel to the destination storage.
-     * The parcel is stored in a storage facility in the destination city for further processing.
+     * The parcel is stored in a storage facility in the destination city for
+     * further processing.
      * 
      * @param parcelId The ID of the parcel to be processed.
      * @return The updated Parcel after processing.
@@ -452,16 +598,18 @@ public class ParcelServiceImpl implements ParcelService {
 
         // Retrieve the parcel using the provided parcelId
         Parcel parcel = parcelRepository.findById(parcelId)
-                .orElseThrow(() -> new TendrilExExceptionHandler(HttpStatus.NOT_FOUND, "Parcel not found with id: " + parcelId));
+                .orElseThrow(() -> new TendrilExExceptionHandler(HttpStatus.NOT_FOUND,
+                        "Parcel not found with id: " + parcelId));
 
         // Ensure the driver is an inter-city driver
         if (driver.getDriverType() != DriverType.INTER_CITY) {
             throw new TendrilExExceptionHandler(HttpStatus.BAD_REQUEST, "Driver is not an inter-city driver.");
         }
 
-        // Ensure the parcel has been collected from the destination storage 
+        // Ensure the parcel has been collected from the destination storage
         if (!parcel.getStatus().equals(ParcelStatus.IN_TRANSIT_TO_DESTINATION_STORAGE)) {
-            throw new TendrilExExceptionHandler(HttpStatus.BAD_REQUEST, "Parcel has not been collected yet from the destination storage");
+            throw new TendrilExExceptionHandler(HttpStatus.BAD_REQUEST,
+                    "Parcel has not been collected yet from the destination storage");
         }
 
         try {
@@ -474,19 +622,19 @@ public class ParcelServiceImpl implements ParcelService {
             // parcel.setStatus(ParcelStatus.DELIVERED_TO_DESTINATION_STORAGE);
             parcel.setStatus(ParcelStatus.AWAITING_INTRA_CITY_PICKUP);
 
-
             return parcelRepository.save(parcel);
 
         } catch (Exception e) {
             // Handle any exceptions that occur during the delivery process
-            throw new TendrilExExceptionHandler(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to deliver parcel to destination storage: " + e.getMessage());
+            throw new TendrilExExceptionHandler(HttpStatus.INTERNAL_SERVER_ERROR,
+                    "Failed to deliver parcel to destination storage: " + e.getMessage());
         }
     }
 
-
     /**
      * Handles direct delivery of a parcel to the recipient.
-     * Updates the parcel status to 'DELIVERED_TO_RECIPIENT' and sends a notification to the recipient.
+     * Updates the parcel status to 'DELIVERED_TO_RECIPIENT' and sends a
+     * notification to the recipient.
      * 
      * @param parcelId The ID of the parcel to be delivered.
      * @return The updated Parcel after delivery.
@@ -500,16 +648,18 @@ public class ParcelServiceImpl implements ParcelService {
 
         // Retrieve the parcel using the provided parcelId
         Parcel parcel = parcelRepository.findById(parcelId)
-                .orElseThrow(() -> new TendrilExExceptionHandler(HttpStatus.NOT_FOUND, "Parcel not found with id: " + parcelId));
+                .orElseThrow(() -> new TendrilExExceptionHandler(HttpStatus.NOT_FOUND,
+                        "Parcel not found with id: " + parcelId));
 
         // Ensure the driver is an intra-city driver
         if (driver.getDriverType() != DriverType.INTRA_CITY) {
             throw new TendrilExExceptionHandler(HttpStatus.BAD_REQUEST, "Driver is not an intra-city driver.");
         }
 
-        // Ensure the parcel has been picked up from the locker 
+        // Ensure the parcel has been picked up from the locker
         if (!parcel.getStatus().equals(ParcelStatus.IN_TRANSIT_TO_RECIPIENT)) {
-            throw new TendrilExExceptionHandler(HttpStatus.BAD_REQUEST, "Parcel has not been picked up yet from the locker");
+            throw new TendrilExExceptionHandler(HttpStatus.BAD_REQUEST,
+                    "Parcel has not been picked up yet from the locker");
         }
 
         try {
@@ -519,15 +669,16 @@ public class ParcelServiceImpl implements ParcelService {
 
             // Notify the recipient of the delivery
             notificationService.sendInAppNotification(
-                    parcel, 
-                    NotificationType.PARCEL_DELIVERED, 
-                    "Your parcel has been delivered", 
+                    parcel,
+                    NotificationType.PARCEL_DELIVERED,
+                    "Your parcel has been delivered",
                     parcel.getRecipient().getUser());
 
             return parcel;
         } catch (Exception e) {
             // Handle any exceptions that occur during the direct delivery process
-            throw new TendrilExExceptionHandler(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to deliver parcel to recipient: " + e.getMessage());
+            throw new TendrilExExceptionHandler(HttpStatus.INTERNAL_SERVER_ERROR,
+                    "Failed to deliver parcel to recipient: " + e.getMessage());
         }
     }
 
@@ -539,7 +690,8 @@ public class ParcelServiceImpl implements ParcelService {
 
         // Retrieve the parcel using the provided parcelId
         Parcel parcel = parcelRepository.findById(parcelId)
-                .orElseThrow(() -> new TendrilExExceptionHandler(HttpStatus.NOT_FOUND, "Parcel not found with id: " + parcelId));
+                .orElseThrow(() -> new TendrilExExceptionHandler(HttpStatus.NOT_FOUND,
+                        "Parcel not found with id: " + parcelId));
 
         // Ensure the parcel belongs to the authenticated sender
         if (!parcel.getSender().equals(sender)) {
@@ -561,40 +713,16 @@ public class ParcelServiceImpl implements ParcelService {
             throw new TendrilExExceptionHandler(HttpStatus.BAD_REQUEST, "Transaction code has expired");
         }
 
-        // Mark the parcel as awaiting the appropriate driver assignment based on its type
+        // Mark the parcel as awaiting the appropriate driver assignment based on its
+        // type
         if (parcel.getParcelType() == ParcelType.INTRA_CITY) {
             parcel.setStatus(ParcelStatus.AWAITING_INTRA_CITY_PICKUP);
         } else if (parcel.getParcelType() == ParcelType.INTER_CITY) {
-            parcel.setStatus(ParcelStatus.AWAITING_INTRA_CITY_PICKUP); // Intra-city driver will first take it to departure storage
+            parcel.setStatus(ParcelStatus.AWAITING_INTRA_CITY_PICKUP); // Intra-city driver will first take it to
+                                                                       // departure storage
         }
         // Save the updated parcel
         return parcelRepository.save(parcel);
     }
-
-
-    @Override
-    public List<Parcel> getParcelsAssignedToIntraCityDriver(Long driverId) {
-        Driver driver = driverService.getAuthenticatedDriver();
-
-        // Ensure the driver is an intra-city driver
-        if (driver.getDriverType() != DriverType.INTRA_CITY) {
-            throw new TendrilExExceptionHandler(HttpStatus.BAD_REQUEST, "Driver is not an intra-city driver.");
-        }
-
-        return parcelRepository.findByDriverIdAndParcelType(driverId, ParcelType.INTRA_CITY);
-    }
-
-    @Override
-    public List<Parcel> getParcelsAssignedToInterCityDriver(Long driverId) {
-        Driver driver = driverService.getAuthenticatedDriver();
-
-        // Ensure the driver is an inter-city driver
-        if (driver.getDriverType() != DriverType.INTER_CITY) {
-            throw new TendrilExExceptionHandler(HttpStatus.BAD_REQUEST, "Driver is not an inter-city driver.");
-        }
-
-        return parcelRepository.findByDriverIdAndParcelType(driverId, ParcelType.INTER_CITY);
-    }
-
 
 }

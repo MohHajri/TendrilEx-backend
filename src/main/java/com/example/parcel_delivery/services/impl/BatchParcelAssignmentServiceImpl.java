@@ -13,13 +13,11 @@ import org.springframework.transaction.annotation.Transactional;
 import com.example.parcel_delivery.exceptions.TendrilExExceptionHandler;
 import com.example.parcel_delivery.models.entities.Driver;
 import com.example.parcel_delivery.models.entities.Parcel;
-import com.example.parcel_delivery.models.enums.DriverType;
 import com.example.parcel_delivery.models.enums.ParcelStatus;
 import com.example.parcel_delivery.models.enums.ParcelType;
 import com.example.parcel_delivery.services.BatchParcelAssignmentService;
 import com.example.parcel_delivery.services.DriverService;
 import com.example.parcel_delivery.services.ParcelService;
-import com.example.parcel_delivery.services.StorageService;
 
 @Service
 public class BatchParcelAssignmentServiceImpl implements BatchParcelAssignmentService {
@@ -30,13 +28,9 @@ public class BatchParcelAssignmentServiceImpl implements BatchParcelAssignmentSe
     @Autowired
     private ParcelService parcelService;
 
-    @Autowired
-    private StorageService storageService;
-
     // Define the minimum number of parcels each driver should handle per type
     private static final int INTRA_CITY_PARCELS_PER_DRIVER = 4; // Intra-city parcels per driver
     private static final int INTER_CITY_PARCELS_PER_DRIVER = 5; // Inter-city parcels per driver
-
 
     @Transactional
     // @Scheduled(cron = "0 0 1 * * MON-FRI")
@@ -96,7 +90,7 @@ public class BatchParcelAssignmentServiceImpl implements BatchParcelAssignmentSe
      */
     private void processCityParcels(List<Parcel> parcels, String city) {
         // Separate parcels into intra-city and inter-city
-        //intra city parcels
+        // intra city parcels
         List<Parcel> intraCityParcels = parcels.stream()
 
                 .filter(parcel -> parcel.getParcelType() == ParcelType.INTRA_CITY)
@@ -130,20 +124,28 @@ public class BatchParcelAssignmentServiceImpl implements BatchParcelAssignmentSe
      */
     private void assignIntraCityParcels(List<Parcel> parcels, String city) {
 
-        if (parcels.isEmpty()) return; // No parcels to assign
+        if (parcels.isEmpty())
+            return; // No parcels to assign
 
-        List<Driver> availableDrivers = driverService.findAllAvailableDriversInCity(DriverType.INTRA_CITY, city);
+        // List<Driver> availableDrivers =
+        // driverService.findAllAvailableDriversInCity(DriverType.INTRA_CITY, city);
+        List<Driver> availableDrivers = driverService.getActiveAvailableIntraCityDrivers(city);
 
-        /** Scenario 1: High Volume Assignment
-         * Purpose: This scenario exists to ensure that drivers are fully utilized by assigning them a specific threshold of parcels (INTRA_CITY_PARCELS_PER_DRIVER). 
-         * The idea is to ensuring that each driver has a sufficient workload to justify their assignment for the day (the batch works daily at 1:00 am)
+        /**
+         * Scenario 1: High Volume Assignment
+         * Purpose: This scenario exists to ensure that drivers are fully utilized by
+         * assigning them a specific threshold of parcels
+         * (INTRA_CITY_PARCELS_PER_DRIVER).
+         * The idea is to ensuring that each driver has a sufficient workload to justify
+         * their assignment for the day (the batch works daily at 1:00 am)
          * 
          */
         if (parcels.size() >= INTRA_CITY_PARCELS_PER_DRIVER) {
 
             for (Driver driver : availableDrivers) {
 
-                if (parcels.isEmpty()) break;
+                if (parcels.isEmpty())
+                    break;
 
                 if (!driverService.hasParcelsAssigned(driver)) {
 
@@ -165,9 +167,13 @@ public class BatchParcelAssignmentServiceImpl implements BatchParcelAssignmentSe
             }
         }
 
-        /**Scenario 2: Low Volume Assignment
-         * Purpose: This scenario is to ensure that even on low-volume days, parcels are still delivered rather than waiting until the next day, which could cause delays.
-         * It's a fallback. it happens when the total number of parcels available on a given day is less than the threshold.
+        /**
+         * Scenario 2: Low Volume Assignment
+         * Purpose: This scenario is to ensure that even on low-volume days, parcels are
+         * still delivered rather than waiting until the next day, which could cause
+         * delays.
+         * It's a fallback. it happens when the total number of parcels available on a
+         * given day is less than the threshold.
          * 
          */
         if (!parcels.isEmpty() && parcels.size() < INTRA_CITY_PARCELS_PER_DRIVER) {
@@ -198,26 +204,31 @@ public class BatchParcelAssignmentServiceImpl implements BatchParcelAssignmentSe
      */
     private void assignInterCityParcels(Map<String, List<Parcel>> interCityParcelsByDestination, String city) {
 
-        List<Driver> availableInterCityDrivers = driverService.findAllAvailableDriversInCity(DriverType.INTER_CITY, city);
+        // List<Driver> availableInterCityDrivers =
+        // driverService.findAllAvailableDriversInCity(DriverType.INTER_CITY, city);
+        List<Driver> availableInterCityDrivers = driverService.getActiveAvailableInterCityDrivers(city);
 
         /**
          * Scenario 1: High Volume Assignment
-         * As said above, purpose is to ensure drivers are fully utilized by assigning them a specific threshold of parcels.
+         * As said above, purpose is to ensure drivers are fully utilized by assigning
+         * them a specific threshold of parcels.
          */
         for (Driver driver : availableInterCityDrivers) {
 
-            if (interCityParcelsByDestination.isEmpty()) break;
+            if (interCityParcelsByDestination.isEmpty())
+                break;
 
             for (String destinationCity : interCityParcelsByDestination.keySet()) {
 
                 List<Parcel> outgoingParcels = interCityParcelsByDestination.get(destinationCity);
 
-                if (outgoingParcels == null || outgoingParcels.isEmpty()) continue;
+                if (outgoingParcels == null || outgoingParcels.isEmpty())
+                    continue;
 
                 assignParcelsToDriver(outgoingParcels, driver, INTER_CITY_PARCELS_PER_DRIVER);
 
                 // Also handle return parcels
-                List<Parcel> returnParcels = storageService.getParcelsForReturnTrip(destinationCity,
+                List<Parcel> returnParcels = parcelService.getParcelsForReturnTrip(destinationCity,
 
                         PageRequest.of(0, INTER_CITY_PARCELS_PER_DRIVER));
 
@@ -236,13 +247,13 @@ public class BatchParcelAssignmentServiceImpl implements BatchParcelAssignmentSe
         assignRemainingParcels(
 
                 interCityParcelsByDestination.values()
-                .stream()
+                        .stream()
 
-                .flatMap(List::stream)
+                        .flatMap(List::stream)
 
-                .collect(Collectors.toList()
+                        .collect(Collectors.toList()
 
-                ),
+                        ),
 
                 availableInterCityDrivers);
     }
@@ -287,7 +298,7 @@ public class BatchParcelAssignmentServiceImpl implements BatchParcelAssignmentSe
             Parcel parcel = parcels.remove(0);
 
             // assignParcelToDriver(parcel, driver, ParcelStatus.AWAITING_PICKUP);
-             // Update the status based on parcel type
+            // Update the status based on parcel type
             if (parcel.getParcelType() == ParcelType.INTRA_CITY) {
 
                 assignParcelToDriver(parcel, driver, ParcelStatus.ASSIGNED_TO_INTRA_CITY_DRIVER);
@@ -297,7 +308,7 @@ public class BatchParcelAssignmentServiceImpl implements BatchParcelAssignmentSe
                 assignParcelToDriver(parcel, driver, ParcelStatus.ASSIGNED_TO_INTER_CITY_DRIVER);
 
             }
-            
+
         }
 
         if (parcelService.countParcelsByDriver(driver) >= maxParcels) {
