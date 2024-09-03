@@ -1,6 +1,5 @@
 package com.example.parcel_delivery.exceptions;
 
-
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
@@ -15,6 +14,7 @@ import com.example.parcel_delivery.models.dtos.responses.ErrorRes;
 
 import java.util.HashMap;
 import java.util.Map;
+import org.springframework.lang.NonNull;
 
 @RestControllerAdvice
 public class GlobalException extends ResponseEntityExceptionHandler {
@@ -24,8 +24,8 @@ public class GlobalException extends ResponseEntityExceptionHandler {
      * Returns a map of field errors.
      */
     @Override
-    protected ResponseEntity<Object> handleMethodArgumentNotValid(MethodArgumentNotValidException ex,
-            HttpHeaders headers, HttpStatusCode status, WebRequest request) {
+    protected ResponseEntity<Object> handleMethodArgumentNotValid(@NonNull MethodArgumentNotValidException ex,
+            @NonNull HttpHeaders headers, @NonNull HttpStatusCode status, @NonNull WebRequest request) {
 
         Map<String, String> errors = new HashMap<>();
         ex.getBindingResult().getFieldErrors()
@@ -33,7 +33,7 @@ public class GlobalException extends ResponseEntityExceptionHandler {
 
         ErrorRes ErrorRes = new ErrorRes();
         ErrorRes.setStatus(HttpStatus.BAD_REQUEST.value());
-        ErrorRes.setMessage(errors.toString()); 
+        ErrorRes.setMessage(errors.toString());
 
         return new ResponseEntity<>(errors, HttpStatus.BAD_REQUEST);
 

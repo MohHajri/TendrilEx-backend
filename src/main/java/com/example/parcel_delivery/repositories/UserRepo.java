@@ -1,5 +1,6 @@
 package com.example.parcel_delivery.repositories;
 
+import org.springframework.lang.NonNull;
 import java.util.List;
 import java.util.Optional;
 
@@ -11,23 +12,19 @@ import com.example.parcel_delivery.models.entities.User;
 
 public interface UserRepo extends JpaRepository<User, Long> {
 
-    // Optional<User> findByUsername(String username);
-
     @Query("SELECT DISTINCT u FROM User u LEFT JOIN FETCH u.roles WHERE u.username = :username")
+    @NonNull
     Optional<User> findByUsername(@Param("username") String username);
 
+    @Override
+    @NonNull
+    Optional<User> findById(@NonNull Long id);
 
-    // Optional<User> findById(Long id);
-
-    // @Query("SELECT DISTINCT u FROM User u LEFT JOIN FETCH u.roles WHERE u.id = :id")
-    @Query("SELECT u FROM User u WHERE u.id = :id")
-    Optional<User> findById(@Param("id") Long id);
-
-
+    @Override
+    @NonNull
     List<User> findAll();
 
     Boolean existsByUsername(String username);
-
 
     boolean existsByPhoneNumber(String phoneNumber);
 

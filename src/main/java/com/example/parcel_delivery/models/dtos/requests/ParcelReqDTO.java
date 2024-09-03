@@ -1,6 +1,5 @@
 package com.example.parcel_delivery.models.dtos.requests;
 
-
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
@@ -17,11 +16,11 @@ public class ParcelReqDTO {
     @NotBlank(message = "Sender name is mandatory")
     private String senderName;
 
-    @NotBlank(message = "Sender Latitude is mandatory")
-    private String senderLatitude;
-
-    @NotBlank(message = "Sender Longitude is mandatory")
-    private String senderLongitude;
+    @NotBlank(message = "Sender address is mandatory")
+    private String senderAddress;
+    @NotBlank(message = "Sender postcode is mandatory")
+    @Pattern(regexp = "\\d{5}", message = "Invalid postcode")
+    private String senderPostcode;
 
     @NotBlank(message = "Sender city is mandatory")
     private String senderCity;
@@ -29,7 +28,7 @@ public class ParcelReqDTO {
     @NotBlank(message = "Sender phone is mandatory")
     @Pattern(regexp = "^04\\d{7,8}$|^050\\d{6,7}$", message = "Invalid Finnish mobile phone number.")
     private String senderPhoneNo;
-    
+
     @NotBlank(message = "Recipient email is mandatory")
     @Pattern(regexp = "^[A-Za-z0-9+_.-]+@(.+)$", message = "Invalid email format")
     private String senderEmail;
@@ -58,7 +57,7 @@ public class ParcelReqDTO {
     @NotBlank(message = "Parcel weight is mandatory")
     @DecimalMin(value = "0.1", message = "Weight must be greater than 0.1")
     @DecimalMax(value = "100", message = "Weight must be less than 100")
-    private Double weight; //  in kg
+    private Double weight; // in kg
 
     @NotBlank(message = "Parcel width is mandatory")
     @Pattern(regexp = "\\d+(\\.\\d{1,2})?", message = "Invalid width format")
@@ -71,8 +70,8 @@ public class ParcelReqDTO {
     @NotBlank(message = "Parcel depth is mandatory")
     @Pattern(regexp = "\\d+(\\.\\d{1,2})?", message = "Invalid depth format")
     private Double depth; // in cm
- 
-    @NotBlank(message = "Parcel mass is mandatory") 
+
+    @NotBlank(message = "Parcel mass is mandatory")
     @Pattern(regexp = "\\d+(\\.\\d{1,2})?", message = "Invalid mass format")
     private Double mass;
 
@@ -80,17 +79,13 @@ public class ParcelReqDTO {
     private String description;
 
     @NotBlank(message = "Selected Locker ID is mandatory")
-    private Long selectedLockerId;  
-
-    @NotBlank(message = "DropOff Latitude is mandatory")
-    private String dropOffLatitude;
-
-    @NotBlank(message = "DropOff Longitude is mandatory")
-    private String dropOffLongitude;
+    private Long selectedSenderLockerId;
 
     @NotBlank(message = "idempotencyKey is mandatory")
     private String idempotencyKey;
 
+    private Long selectedRecipientLockerId; // Optional: Recipient's locker ID (if applicable)
 
+    private Boolean isDeliverToRecipientLocker; // Indicates if the parcel should be delivered to a recipient's locker
 
 }

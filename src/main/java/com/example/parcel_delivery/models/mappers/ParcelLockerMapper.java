@@ -12,7 +12,7 @@ import org.locationtech.jts.geom.Point;
 public interface ParcelLockerMapper {
 
     @Mapping(target = "lockerId", source = "id")
-    @Mapping(target = "lockerPoint", expression = "java(convertToPointDTO(parcelLocker.getLockerPoint()))")
+    @Mapping(target = "lockerPoint", expression = "java(convertToPointDTO(parcelLocker.getGeoLocation()))")
     ParcelLockerResDTO toParcelLockerResDTO(ParcelLocker parcelLocker);
 
     default GeoPointDTO convertToPointDTO(Point point) {

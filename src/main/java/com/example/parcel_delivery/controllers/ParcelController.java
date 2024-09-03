@@ -116,31 +116,51 @@ public class ParcelController {
         @PostMapping("/pickup/{parcelId}/{transactionCode}")
         public ResponseEntity<ParcelResDTO> pickUpParcelFromLocker(@PathVariable Long parcelId,
                         @PathVariable Integer transactionCode) {
-                Parcel updatedParcel = parcelService.pickUpParcelFromLocker(parcelId, transactionCode);
-                return ResponseEntity.ok(parcelMapper.toParcelResDTO(updatedParcel));
+                return ResponseEntity.ok(
+                                parcelMapper
+                                                .toParcelResDTO(parcelService
+                                                                .pickUpParcelFromLocker(parcelId, transactionCode)));
+        }
+
+        // Endpoint for a customer (sender) to drop off a parcel in the cabinet
+        // Endpoint to drop off a parcel in a cabinet
+        @PostMapping("/customer/drop-off/id/{parcelId}/transactionCode/{transactionCode}")
+        public ResponseEntity<ParcelResDTO> dropOffParcelInCabinet(@PathVariable Long parcelId,
+                        @PathVariable Integer transactionCode) {
+                return ResponseEntity
+                                .ok(parcelMapper
+                                                .toParcelResDTO(parcelService
+                                                                .dropOffParcelInCabinet(parcelId, transactionCode)));
         }
 
         // Endpoint to deliver a parcel to the departure storage (for inter-city
         // delivery)
         @PostMapping("/deliver/departure-storage/{parcelId}")
         public ResponseEntity<ParcelResDTO> deliverToDepartureStorage(@PathVariable Long parcelId) {
-                Parcel updatedParcel = parcelService.deliverToDepartureStorage(parcelId);
-                return ResponseEntity.ok(parcelMapper.toParcelResDTO(updatedParcel));
+                return ResponseEntity
+                                .ok(parcelMapper
+                                                .toParcelResDTO(parcelService
+                                                                .deliverToDepartureStorage(parcelId)));
         }
 
         // Endpoint to deliver a parcel to the destination storage (after inter-city
         // delivery)
         @PostMapping("/deliver/destination-storage/{parcelId}")
         public ResponseEntity<ParcelResDTO> deliverToDestinationStorage(@PathVariable Long parcelId) {
-                Parcel updatedParcel = parcelService.deliverToDestinationStorage(parcelId);
-                return ResponseEntity.ok(parcelMapper.toParcelResDTO(updatedParcel));
+                return ResponseEntity.ok(
+                                parcelMapper
+                                                .toParcelResDTO(parcelService
+                                                                .deliverToDestinationStorage(
+                                                                                parcelId)));
         }
 
         // Endpoint to deliver a parcel directly to the recipient
         @PostMapping("/deliver/recipient/{parcelId}")
         public ResponseEntity<ParcelResDTO> deliverToRecipient(@PathVariable Long parcelId) {
-                Parcel updatedParcel = parcelService.deliverToRecipient(parcelId);
-                return ResponseEntity.ok(parcelMapper.toParcelResDTO(updatedParcel));
+                return ResponseEntity
+                                .ok(parcelMapper
+                                                .toParcelResDTO(parcelService
+                                                                .deliverToRecipient(parcelId)));
         }
 
         // Endpoint to get parcels assigned to an intra-city driver

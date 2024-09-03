@@ -11,10 +11,13 @@ import com.example.parcel_delivery.models.entities.Parcel;
 public interface ParcelMapper {
 
     @Mapping(source = "id", target = "parcelId")
-    @Mapping(source = "transactionCodeValidUntil", target = "codeExpiryDate", dateFormat = "yyyy-MM-dd'T'HH:mm:ss")
-    @Mapping(source = "selectedLockerLocation.lockerPoint", target = "parcelLockerLocationPoint", qualifiedByName = "pointToString")
+    @Mapping(source = "senderTransactionCodeValidUntil", target = "codeExpiryDate", dateFormat = "yyyy-MM-dd'T'HH:mm:ss")
+    @Mapping(source = "selectedLockerLocation.geoLocation", target = "parcelLockerLocationPoint", qualifiedByName = "pointToString")
     @Mapping(source = "sender.user.firstName", target = "senderName")
     @Mapping(source = "parcel", target = "recipientName", qualifiedByName = "getRecipientName")
+    @Mapping(source = "selectedLockerLocation.name", target = "parcelLockerLocationName")
+    @Mapping(source = "cabinet.id", target = "cabinetNumber")
+
     ParcelResDTO toParcelResDTO(Parcel parcel);
 
     @Named("pointToString")

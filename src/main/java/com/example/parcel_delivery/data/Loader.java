@@ -33,7 +33,7 @@ import com.example.parcel_delivery.repositories.StorageRepo;
 import com.example.parcel_delivery.repositories.UserRepo;
 
 @Component
-@Order(1)  // Lower values have higher priority
+@Order(1) // Lower values have higher priority
 public class Loader implements CommandLineRunner {
 
     @Autowired
@@ -43,11 +43,11 @@ public class Loader implements CommandLineRunner {
     private CabinetRepo cabinetRepo;
 
     @Autowired
-    private CustomerRepo customerRepository; 
+    private CustomerRepo customerRepository;
 
     @Autowired
     private UserRepo userRepository;
-    
+
     @Autowired
     private DriverRepo driverRepository;
 
@@ -57,10 +57,8 @@ public class Loader implements CommandLineRunner {
     @Autowired
     private RoleRepo roleRepository;
 
-
     @Autowired
     private PasswordEncoder passwordEncoder;
-
 
     private static final double RADIUS = 35000; // 35 km in meters
     private Random random = new Random();
@@ -88,26 +86,26 @@ public class Loader implements CommandLineRunner {
         });
     }
 
-
     private void generateParcelLockers() {
         GeometryFactory geometryFactory = new GeometryFactory();
         Random random = new Random();
-    
+
         generateLockersInCity("Oulu", 65.01236, 25.46816, geometryFactory, random, 30);
-    
+
         generateLockersInCity("Helsinki", 60.192059, 24.945831, geometryFactory, random, 30);
     }
-    
-    private void generateLockersInCity(String city, double latitude, double longitude, GeometryFactory geometryFactory, Random random, int numberOfLockers) {
+
+    private void generateLockersInCity(String city, double latitude, double longitude, GeometryFactory geometryFactory,
+            Random random, int numberOfLockers) {
         for (int i = 1; i <= numberOfLockers; i++) {
             double[] randomPoint = generateRandomPoint(latitude, longitude, RADIUS, random);
             Point location = geometryFactory.createPoint(new Coordinate(randomPoint[1], randomPoint[0]));
             location.setSRID(4326);
-    
+
             ParcelLocker locker = new ParcelLocker();
             locker.setName(city + " Locker " + i);
-            locker.setLockerPoint(location);
-    
+            locker.setGeoLocation(location);
+
             Set<Cabinet> cabinets = new HashSet<>();
             for (int j = 1; j <= 10; j++) {
                 Cabinet cabinet = new Cabinet();
@@ -115,17 +113,15 @@ public class Loader implements CommandLineRunner {
                 cabinet.setWidth(50.0);
                 cabinet.setHeight(50.0);
                 cabinet.setDepth(50.0);
-                cabinet.setLockerLocation(locker);
+                cabinet.setParcelLocker(locker);
                 cabinets.add(cabinet);
             }
             locker.setCabinets(cabinets);
-    
+
             parcelLockerRepo.save(locker);
             cabinetRepo.saveAll(cabinets);
         }
-    }    
-    
-
+    }
 
     private double[] generateRandomPoint(double latitude, double longitude, double radius, Random random) {
         // Convert radius from meters to degrees
@@ -144,14 +140,14 @@ public class Loader implements CommandLineRunner {
         double foundLongitude = new_x + longitude;
         double foundLatitude = y + latitude;
 
-        return new double[]{foundLatitude, foundLongitude};
+        return new double[] { foundLatitude, foundLongitude };
     }
 
     private void generateRecipients(int numberOfRecipientsPerCity) {
         generateRecipientsInCity("Helsinki", numberOfRecipientsPerCity);
         generateRecipientsInCity("Oulu", numberOfRecipientsPerCity);
     }
-    
+
     private void generateRecipientsInCity(String city, int numberOfRecipients) {
         for (int i = 0; i < numberOfRecipients; i++) {
             User user = createUser("recipient" + city + i, "Some Street " + i, city);
@@ -159,7 +155,7 @@ public class Loader implements CommandLineRunner {
             customer.setUser(user);
             customerRepository.save(customer);
         }
-    }    
+    }
 
     private void generateDriversInCities() {
         // Ensure 5 INTRA_CITY and 5 INTER_CITY drivers in Helsinki
@@ -178,7 +174,8 @@ public class Loader implements CommandLineRunner {
     }
 
     private void createDriverUser(String city, DriverType driverType) {
-        User driverUser = createUser("driver" + city + random.nextInt(1000), "Driver Street " + random.nextInt(100), city);
+        User driverUser = createUser("driver" + city + random.nextInt(1000), "Driver Street " + random.nextInt(100),
+                city);
         Driver driver = new Driver();
         driver.setUser(driverUser);
         driver.setDriverType(driverType);
@@ -191,7 +188,7 @@ public class Loader implements CommandLineRunner {
         do {
             phoneNumber = "050" + (1000000 + random.nextInt(9000000));
         } while (userRepository.existsByPhoneNumber(phoneNumber));
-        
+
         User user = new User();
         user.setUsername(username);
         user.setPassword(passwordEncoder.encode("password"));
@@ -202,13 +199,13 @@ public class Loader implements CommandLineRunner {
         user.setAddress(address);
         user.setCity(city);
         user.setPostcode("00100");
-    
+
         // Assign ROLE_USER to this user
         Role userRole = roleRepository.findByName("ROLE_USER")
-            .orElseThrow(() -> new IllegalStateException("ROLE_USER not found"));
+                .orElseThrow(() -> new IllegalStateException("ROLE_USER not found"));
         user.setRoles(Set.of(userRole));
-    
+
         return userRepository.save(user);
     }
-    
+
 }

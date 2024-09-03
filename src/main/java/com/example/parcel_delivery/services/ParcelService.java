@@ -61,4 +61,8 @@ public interface ParcelService {
 
     List<Parcel> getParcelsForReturnTrip(String city, Pageable pageable);
 
+    Parcel deliverToRecipientPickupPoint(Long parcelId, Integer recipientTransactionCode);
+
+    Parcel pickUpParcelFromStorage(Long parcelId);
+
 }

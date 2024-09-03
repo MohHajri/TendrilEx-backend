@@ -16,7 +16,7 @@ public class CustomerLocationReqDTO {
 
     @NotBlank(message = "Recipient postcode is mandatory")
     @Pattern(regexp = "\\d{5}", message = "Invalid postcode")
-    private String cusomterPostcode;
+    private String customerPostcode;
 
     @NotBlank(message = "Recipient city is mandatory")
     private String customerCity;

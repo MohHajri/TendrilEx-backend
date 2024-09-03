@@ -30,7 +30,7 @@ import lombok.Setter;
 import lombok.ToString;
 
 @Entity
-@Table(name = "parcels", indexes = { @Index(name = "idx_parcel_status", columnList = "status")})
+@Table(name = "parcels", indexes = { @Index(name = "idx_parcel_status", columnList = "status") })
 @NoArgsConstructor
 @AllArgsConstructor
 @Getter
@@ -79,13 +79,25 @@ public class Parcel {
     private Boolean isRecipientRegistered = false;
 
     @Column(nullable = false, unique = true)
-    private Integer transactionCode;
+    private Integer senderTransactionCode;
 
     @Column(nullable = false)
-    private Boolean transactionCodeActive = true;
+    private Boolean senderTransactionCodeActive = true;
 
     @Column(nullable = false)
-    private LocalDateTime transactionCodeValidUntil;
+    private LocalDateTime senderTransactionCodeValidUntil;
+
+    // @Column(nullable = false, unique = true)
+    private Integer recipientTransactionCode;
+
+    // @Column(nullable = false)
+    private Boolean recipientTransactionCodeActive = true;
+
+    // @Column(nullable = false)
+    private LocalDateTime recipientTransactionCodeValidUntil;
+
+    @Column(nullable = false)
+    private Boolean deliverToRecipientLocker = false;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
@@ -94,7 +106,7 @@ public class Parcel {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private ParcelType parcelType;
-    
+
     @ManyToOne
     @JoinColumn(name = "sender_id", referencedColumnName = "id")
     @JsonBackReference
@@ -102,7 +114,7 @@ public class Parcel {
 
     @ManyToOne
     @JoinColumn(name = "recipient_id", referencedColumnName = "id")
-    private Customer recipient; 
+    private Customer recipient;
 
     @ManyToOne
     @JoinColumn(name = "driver_id", referencedColumnName = "id")
@@ -120,7 +132,7 @@ public class Parcel {
     @ManyToOne
     @JoinColumn(name = "selected_locker_location_id")
     private ParcelLocker selectedLockerLocation;
-    
+
     @CreationTimestamp
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -138,6 +150,5 @@ public class Parcel {
 
     @Column(nullable = false)
     private LocalDateTime idempotencyKeyCreatedAt;
-
 
 }

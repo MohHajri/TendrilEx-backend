@@ -50,7 +50,9 @@ public interface ParcelRepo extends JpaRepository<Parcel, Long> {
         List<Parcel> findByDriverIdAndParcelType(@Param("driverId") Long driverId,
                         @Param("parcelType") ParcelType parcelType);
 
-        Optional<Parcel> findByTransactionCode(Integer transactionCode);
+        Optional<Parcel> findBySenderTransactionCode(Integer senderTransactionCode);
+
+        Optional<Parcel> findByRecipientTransactionCode(Integer recipientTransactionCode);
 
         Long countByStatus(ParcelStatus status);
 

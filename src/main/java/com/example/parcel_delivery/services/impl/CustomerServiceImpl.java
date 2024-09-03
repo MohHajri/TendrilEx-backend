@@ -66,7 +66,7 @@ public class CustomerServiceImpl implements CustomerService {
 
         customer.getUser().setUserPoint(senderPoint);
         customer.getUser().setAddress(customerLocationReqDTO.getCustomerAddress());
-        customer.getUser().setPostcode(customerLocationReqDTO.getCusomterPostcode());
+        customer.getUser().setPostcode(customerLocationReqDTO.getCustomerPostcode());
         customer.getUser().setCity(customerLocationReqDTO.getCustomerCity());
         return customerRepository.save(customer);
     }

@@ -6,6 +6,7 @@ import org.mapstruct.Mapping;
 import com.example.parcel_delivery.models.dtos.requests.RegisterReqDTO;
 import com.example.parcel_delivery.models.dtos.responses.UserResDTO;
 import com.example.parcel_delivery.models.entities.User;
+
 @Mapper(componentModel = "spring")
 public interface UserMapper {
 

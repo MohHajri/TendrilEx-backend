@@ -13,11 +13,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.example.parcel_delivery.models.dtos.requests.CustomerLocationReqDTO;
 import com.example.parcel_delivery.models.dtos.requests.ParcelReqDTO;
 import com.example.parcel_delivery.models.entities.Cabinet;
 import com.example.parcel_delivery.models.entities.Customer;
 import com.example.parcel_delivery.models.entities.Driver;
 import com.example.parcel_delivery.models.entities.Parcel;
+// import com.example.parcel_delivery.models.entities.ParcelLocker;
 import com.example.parcel_delivery.models.entities.Storage;
 import com.example.parcel_delivery.models.enums.CabinetStatus;
 import com.example.parcel_delivery.models.enums.DriverType;
@@ -69,10 +71,13 @@ public class ParcelServiceImpl implements ParcelService {
     @Autowired
     private DriverService driverService;
 
+    // @Autowired
+    // private ParcelLockerService parcelLockerService;
+
     @Override
     public Parcel sendNewParcel(ParcelReqDTO parcelReqDTO) {
         try {
-            // Check if the parcel is already sent (Idempotency)
+            // Step 1: Check if the parcel is already sent (Idempotency)
             Optional<Parcel> existingParcel = parcelRepository.findByIdempotencyKey(parcelReqDTO.getIdempotencyKey());
             if (existingParcel.isPresent()) {
                 return existingParcel.get();
@@ -85,7 +90,7 @@ public class ParcelServiceImpl implements ParcelService {
                         "You are not allowed to access this resource");
             }
 
-            // Find recipient customer based on phone number
+            // Step 2: Find recipient customer based on phone number
             Optional<Customer> recipientOpt = customerService
                     .findCustomerByPhoneNumber(parcelReqDTO.getRecipientPhoneNo());
             Customer recipient = null;
@@ -96,20 +101,31 @@ public class ParcelServiceImpl implements ParcelService {
                 isRecipientRegistered = true;
             }
 
-            // Get sender's location from the request
-            Point senderLocation = locationUtil.getLocationFromDTO(parcelReqDTO);
-            sender.getUser().setUserPoint(senderLocation);
+            // Temporary comments this off
+            // // Step 4: Geocode the sender's address to get location
+            // CustomerLocationReqDTO senderLocationDTO = new CustomerLocationReqDTO(
+            // parcelReqDTO.getSenderAddress(), parcelReqDTO.getSenderPostcode(),
+            // parcelReqDTO.getSenderCity());
+            // Point senderLocation = locationUtil.geocodeLocation(senderLocationDTO);
+            // sender.getUser().setUserPoint(senderLocation);
 
-            // Determine the Parcel Type (Intra-city or Inter-city)
+            // Step 5: Determine the Parcel Type (Intra-city or Inter-city)
             ParcelType parcelType = determineParcelType(parcelReqDTO.getSenderCity(), parcelReqDTO, recipient);
 
-            // Select and Reserve a Cabinet
-            Cabinet reservedCabinet = cabinetService.reserveCabinetFromThe5Lockers(parcelReqDTO.getSelectedLockerId());
+            // Step 6: Reserve a Cabinet in the selected locker (sender's locker)
+            Cabinet reservedCabinet = cabinetService
+                    .reserveCabinetFromThe5Lockers(parcelReqDTO.getSelectedSenderLockerId());
 
-            // Generate Transaction Code
+            // Step 7: Hold a cabinet in the recipient's locker (if applicable)
+            if (parcelReqDTO.getIsDeliverToRecipientLocker() && parcelReqDTO.getSelectedRecipientLockerId() != null) {
+                cabinetService.holdCabinetForRecipientLocker(parcelReqDTO.getSelectedRecipientLockerId());
+            }
+
+            // Step 8: Generate Transaction Code for the sender( will be useed by intra
+            // driver as wll for pickup)
             Integer transactionCode = transactionCodeGenerator.generateTransactionCode();
 
-            // Create Parcel
+            // Step 9: Create the Parcel entity and populate with details
             Parcel parcel = new Parcel();
             parcel.setSender(sender);
             parcel.setDepth(parcelReqDTO.getDepth());
@@ -121,14 +137,14 @@ public class ParcelServiceImpl implements ParcelService {
             parcel.setStatus(ParcelStatus.CREATED);
             parcel.setCabinet(reservedCabinet);
             parcel.setSelectedLockerLocation(
-                    ParcelLockerService.getParcelLockerById(parcelReqDTO.getSelectedLockerId()));
-            parcel.setTransactionCode(transactionCode);
-            parcel.setTransactionCodeValidUntil(LocalDateTime.now().plusDays(12));
+                    ParcelLockerService.getParcelLockerById(parcelReqDTO.getSelectedSenderLockerId()));
+            parcel.setSenderTransactionCode(transactionCode);
+            parcel.setSenderTransactionCodeValidUntil(LocalDateTime.now().plusDays(12));
             parcel.setIdempotencyKey(parcelReqDTO.getIdempotencyKey());
             parcel.setIdempotencyKeyCreatedAt(LocalDateTime.now());
             parcel.setIsRecipientRegistered(isRecipientRegistered);
 
-            // If recipient is registered, set the recipient
+            // Step 10: If the recipient is registered, set the recipient details
             if (isRecipientRegistered) {
                 parcel.setRecipient(recipient);
             } else {
@@ -141,18 +157,18 @@ public class ParcelServiceImpl implements ParcelService {
                 parcel.setUnregisteredRecipientCity(parcelReqDTO.getRecipientCity());
             }
 
-            // Save recipient if registered
-            if (recipient != null) {
-                parcel.setRecipient(recipient);
+            // Set it true that recipient has a pickup point delivery; not home delivery
+            if (parcelReqDTO.getIsDeliverToRecipientLocker()) {
+                parcel.setDeliverToRecipientLocker(true);
             }
 
             // Set parcel in cabinet
             reservedCabinet.setCurrentParcel(parcel);
 
-            // Save parcel
+            // Step 11: Save parcel
             Parcel savedParcel = parcelRepository.save(parcel);
 
-            // Send notifications
+            // Step 12: Send notifications
             if (recipient != null && recipient.getUser() != null) {
                 // Registered recipient
                 notificationService.sendInAppNotification(
@@ -443,12 +459,32 @@ public class ParcelServiceImpl implements ParcelService {
     @Override
     @Transactional(propagation = Propagation.REQUIRES_NEW) // why? to ensure that the transaction commits after
                                                            // processing each page. the status changes
+    // public List<Parcel> findParcelsForDriverAssignment(int page, int size) {
+    // Pageable pageable = PageRequest.of(page, size);
+    // // Fetch parcels that are either awaiting intra-city or inter-city pickup
+    // Page<Parcel> parcelPage = parcelRepository.findByStatusIn(
+    // List.of(ParcelStatus.AWAITING_INTRA_CITY_PICKUP,
+    // ParcelStatus.AWAITING_INTER_CITY_PICKUP),
+    // pageable);
+    // return parcelPage.getContent();
+    // }
+
     public List<Parcel> findParcelsForDriverAssignment(int page, int size) {
         Pageable pageable = PageRequest.of(page, size);
-        // Fetch parcels that are either awaiting intra-city or inter-city pickup
+
+        // Fetch parcels that are awaiting various stages of intra-city or inter-city
+        // pickup
         Page<Parcel> parcelPage = parcelRepository.findByStatusIn(
-                List.of(ParcelStatus.AWAITING_INTRA_CITY_PICKUP, ParcelStatus.AWAITING_INTER_CITY_PICKUP),
-                pageable);
+                List.of(
+                        ParcelStatus.AWAITING_INTRA_CITY_PICKUP, // For intra-city deliveries
+                        ParcelStatus.AWAITING_DEPARTURE_STORAGE_PICKUP, // For inter-city parcels waiting for pickup to
+                                                                        // storage by intra-city delivers
+                        ParcelStatus.AWAITING_INTER_CITY_PICKUP, // For inter-city parcels waiting for pickup by
+                                                                 // inter-city drivers
+                        ParcelStatus.AWAITING_FINAL_DELIVERY // New status for inter parcels ready for final delivery in
+                                                             // destination city by intra-city drivers
+                ), pageable);
+
         return parcelPage.getContent();
     }
 
@@ -491,17 +527,17 @@ public class ParcelServiceImpl implements ParcelService {
                         "Parcel not found with id: " + parcelId));
 
         // Step 3: Validate the transaction code matches the parcel's transaction code
-        if (!parcel.getTransactionCode().equals(transactionCode)) {
+        if (!parcel.getSenderTransactionCode().equals(transactionCode)) {
             throw new TendrilExExceptionHandler(HttpStatus.BAD_REQUEST, "Invalid transaction code for this parcel.");
         }
 
         // Step 4: Ensure the transaction code is active
-        if (!parcel.getTransactionCodeActive()) {
+        if (!parcel.getSenderTransactionCodeActive()) {
             throw new TendrilExExceptionHandler(HttpStatus.BAD_REQUEST, "Transaction code is inactive");
         }
 
         // Step 5: Ensure the transaction code has not expired
-        if (parcel.getTransactionCodeValidUntil().isBefore(LocalDateTime.now())) {
+        if (parcel.getSenderTransactionCodeValidUntil().isBefore(LocalDateTime.now())) {
             throw new TendrilExExceptionHandler(HttpStatus.BAD_REQUEST, "Transaction code has expired");
         }
 
@@ -510,9 +546,8 @@ public class ParcelServiceImpl implements ParcelService {
             throw new TendrilExExceptionHandler(HttpStatus.FORBIDDEN, "Parcel is not assigned to this driver");
         }
 
-        // Step 7: Ensure the parcel is in a cabinet and awaiting pickup
-        // if (!parcel.getStatus().equals(ParcelStatus.AWAITING_PICKUP)) {
-        if (!parcel.getStatus().equals(ParcelStatus.AWAITING_INTRA_CITY_PICKUP)) {
+        // Step 7: Ensure the parcel is in a cabinet and and assigned to driver
+        if (!parcel.getStatus().equals(ParcelStatus.ASSIGNED_TO_INTRA_CITY_DRIVER)) {
             throw new TendrilExExceptionHandler(HttpStatus.BAD_REQUEST, "Parcel is not available for pickup");
         }
 
@@ -523,7 +558,7 @@ public class ParcelServiceImpl implements ParcelService {
             parcel.setStatus(ParcelStatus.IN_TRANSIT_TO_RECIPIENT);
         }
 
-        // Step 9: Mark the cabinet as free and clear it from the parcel
+        // Step 9: Mark the original cabinet as free and clear it from the parcel
         Cabinet cabinet = parcel.getCabinet();
         if (cabinet != null) {
             cabinet.setStatus(CabinetStatus.FREE);
@@ -532,9 +567,24 @@ public class ParcelServiceImpl implements ParcelService {
         }
 
         // Step 10: Deactivate the transaction code
-        parcel.setTransactionCodeActive(false);
+        parcel.setSenderTransactionCodeActive(false);
 
-        // Step 11: Save the updated parcel
+        // Step 11: If the parcel is for delivery to a recipient locker and is
+        // intra-city, generate the
+        // recipient's transaction code and associate the held cabinet
+        if (parcel.getDeliverToRecipientLocker() && parcel.getParcelType() == ParcelType.INTRA_CITY) {
+            Integer recipientTransactionCode = transactionCodeGenerator.generateTransactionCode();
+            parcel.setRecipientTransactionCode(recipientTransactionCode);
+            parcel.setRecipientTransactionCodeActive(true);
+            parcel.setRecipientTransactionCodeValidUntil(LocalDateTime.now().plusDays(5)); // Valid for 5 days
+
+            // Associate the held cabinet with the parcel
+            Cabinet heldCabinet = cabinetService.associateHeldCabinetWithParcel(parcel,
+                    parcel.getSelectedLockerLocation().getId());
+            parcel.setCabinet(heldCabinet);
+        }
+
+        // Step 12: Save the updated parcel with the new cabinet (if applicable)
         return parcelRepository.save(parcel);
     }
 
@@ -593,34 +643,48 @@ public class ParcelServiceImpl implements ParcelService {
     @Override
     public Parcel deliverToDestinationStorage(Long parcelId) {
 
-        // Authenticate the driver
+        // Step 1: Authenticate the driver
         Driver driver = driverService.getAuthenticatedDriver();
 
-        // Retrieve the parcel using the provided parcelId
+        // Step 2: Retrieve the parcel using the provided parcelId
         Parcel parcel = parcelRepository.findById(parcelId)
                 .orElseThrow(() -> new TendrilExExceptionHandler(HttpStatus.NOT_FOUND,
                         "Parcel not found with id: " + parcelId));
 
-        // Ensure the driver is an inter-city driver
+        // Step 3: Ensure the driver is an inter-city driver
         if (driver.getDriverType() != DriverType.INTER_CITY) {
             throw new TendrilExExceptionHandler(HttpStatus.BAD_REQUEST, "Driver is not an inter-city driver.");
         }
 
-        // Ensure the parcel has been collected from the destination storage
+        // Step 4: Ensure the parcel has been collected from the departure storage
         if (!parcel.getStatus().equals(ParcelStatus.IN_TRANSIT_TO_DESTINATION_STORAGE)) {
             throw new TendrilExExceptionHandler(HttpStatus.BAD_REQUEST,
                     "Parcel has not been collected yet from the destination storage");
         }
 
         try {
-            // Find or create the storage in the destination city
+            // Step 5: Find or create the storage in the destination city
             String recipientCity = parcel.getRecipient().getUser().getCity();
             Storage storage = storageService.findOrCreateStorageForCity(recipientCity);
 
-            // Associate the parcel with the storage and update its status
+            // Step 6: Associate the parcel with the storage and update its status
             parcel.setStorage(storage);
-            // parcel.setStatus(ParcelStatus.DELIVERED_TO_DESTINATION_STORAGE);
-            parcel.setStatus(ParcelStatus.AWAITING_INTRA_CITY_PICKUP);
+            // parcel.setStatus(ParcelStatus.AWAITING_INTRA_CITY_PICKUP);
+            parcel.setStatus(ParcelStatus.AWAITING_FINAL_DELIVERY); // New status indicating it's ready for final
+                                                                    // delivery
+
+            // Step 7: For inter-city parcels, associate the held cabinet and generate the
+            // recipient's transaction code
+            if (parcel.getDeliverToRecipientLocker()) {
+                Integer recipientTransactionCode = transactionCodeGenerator.generateTransactionCode();
+                parcel.setRecipientTransactionCode(recipientTransactionCode);
+                parcel.setRecipientTransactionCodeActive(true);
+                parcel.setRecipientTransactionCodeValidUntil(LocalDateTime.now().plusDays(5)); // Valid for 5 days
+
+                Cabinet heldCabinet = cabinetService.associateHeldCabinetWithParcel(parcel,
+                        parcel.getSelectedLockerLocation().getId());
+                parcel.setCabinet(heldCabinet);
+            }
 
             return parcelRepository.save(parcel);
 
@@ -682,6 +746,15 @@ public class ParcelServiceImpl implements ParcelService {
         }
     }
 
+    /**
+     * This method happens when a sender drops off a parcel (wether it is intra or
+     * inter) into a cabinet (from the selected closest parcel locker) after the
+     * parcel is created
+     * 
+     * @param parcelId
+     * @param transactionCode
+     * @return
+     */
     @Override
     @Transactional
     public Parcel dropOffParcelInCabinet(Long parcelId, Integer transactionCode) {
@@ -699,17 +772,17 @@ public class ParcelServiceImpl implements ParcelService {
         }
 
         // Validate the transaction code matches the parcel's transaction code
-        if (!parcel.getTransactionCode().equals(transactionCode)) {
+        if (!parcel.getSenderTransactionCode().equals(transactionCode)) {
             throw new TendrilExExceptionHandler(HttpStatus.BAD_REQUEST, "Invalid transaction code for this parcel.");
         }
 
         // Ensure the transaction code is active
-        if (!parcel.getTransactionCodeActive()) {
+        if (!parcel.getSenderTransactionCodeActive()) {
             throw new TendrilExExceptionHandler(HttpStatus.BAD_REQUEST, "Transaction code is inactive");
         }
 
         // Ensure the transaction code has not expired
-        if (parcel.getTransactionCodeValidUntil().isBefore(LocalDateTime.now())) {
+        if (parcel.getSenderTransactionCodeValidUntil().isBefore(LocalDateTime.now())) {
             throw new TendrilExExceptionHandler(HttpStatus.BAD_REQUEST, "Transaction code has expired");
         }
 
@@ -718,11 +791,155 @@ public class ParcelServiceImpl implements ParcelService {
         if (parcel.getParcelType() == ParcelType.INTRA_CITY) {
             parcel.setStatus(ParcelStatus.AWAITING_INTRA_CITY_PICKUP);
         } else if (parcel.getParcelType() == ParcelType.INTER_CITY) {
-            parcel.setStatus(ParcelStatus.AWAITING_INTRA_CITY_PICKUP); // Intra-city driver will first take it to
-                                                                       // departure storage
+            // parcel.setStatus(ParcelStatus.AWAITING_INTRA_CITY_PICKUP); // Intra-city
+            // driver will first take it to
+            // departure storage
+            parcel.setStatus(ParcelStatus.AWAITING_DEPARTURE_STORAGE_PICKUP);
+
         }
         // Save the updated parcel
         return parcelRepository.save(parcel);
     }
 
+    /**
+     * This method happens when a driver delivers a parcel (wether it is intra or
+     * inter) into a cabinet (from the selected closest parcel locker to the
+     * recipent)
+     * It happens in case of a pickup point delivery chosen by the sender
+     * 
+     * @param parcelId
+     * @param recipientTransactionCode
+     * @return
+     */
+    @Override
+    @Transactional
+    public Parcel deliverToRecipientPickupPoint(Long parcelId, Integer recipientTransactionCode) {
+        // Step 1: Authenticate the driver
+        Driver driver = driverService.getAuthenticatedDriver();
+
+        // Step 2: Retrieve the parcel using the provided parcelId
+        Parcel parcel = parcelRepository.findById(parcelId)
+                .orElseThrow(() -> new TendrilExExceptionHandler(HttpStatus.NOT_FOUND,
+                        "Parcel not found with id: " + parcelId));
+
+        // Step 3: Validate the recipient's transaction code matches the parcel's
+        // transaction code
+        if (!parcel.getRecipientTransactionCode().equals(recipientTransactionCode)) {
+            throw new TendrilExExceptionHandler(HttpStatus.BAD_REQUEST,
+                    "Invalid recipient transaction code for this parcel.");
+        }
+
+        // Step 4: Ensure the recipient's transaction code is active
+        if (!parcel.getRecipientTransactionCodeActive()) {
+            throw new TendrilExExceptionHandler(HttpStatus.BAD_REQUEST, "Recipient transaction code is inactive");
+        }
+
+        // Step 5: Ensure the recipient's transaction code has not expired
+        if (parcel.getRecipientTransactionCodeValidUntil().isBefore(LocalDateTime.now())) {
+            throw new TendrilExExceptionHandler(HttpStatus.BAD_REQUEST, "Recipient transaction code has expired");
+        }
+
+        // Step 6: Ensure the parcel is assigned to the authenticated driver
+        if (parcel.getDriver() == null || !parcel.getDriver().equals(driver)) {
+            throw new TendrilExExceptionHandler(HttpStatus.FORBIDDEN, "Parcel is not assigned to this driver");
+        }
+
+        // Step 7: Ensure the parcel is either IN_TRANSIT_TO_RECIPIENT in case of an
+        // intra parcel or AWAITING_INTRA_CITY_PICKUP in case of inter parcel point
+        if (!(parcel.getStatus().equals(ParcelStatus.IN_TRANSIT_TO_RECIPIENT) ||
+                parcel.getStatus().equals(ParcelStatus.AWAITING_INTRA_CITY_PICKUP))) {
+            throw new TendrilExExceptionHandler(HttpStatus.BAD_REQUEST,
+                    "Parcel is not available for delivery to the recipient's pickup point");
+        }
+
+        // Proceed with delivery to the recipient's pickup point
+
+        // Step 8: Update the parcel status to indicate it has been delivered to the
+        // recipient's locker
+        parcel.setStatus(ParcelStatus.DELIVERED_TO_RECIPIENT_LOCKER);
+
+        // Step 9: Mark the recipient's transaction code as inactive after delivery
+        parcel.setRecipientTransactionCodeActive(false);
+
+        // Step 10: Save the updated parcel status and details
+        return parcelRepository.save(parcel);
+    }
+
+    /**
+     * Handles the pickup of an inter-city parcel from either the departure storage
+     * or destination storage
+     * by the appropriate driver (inter-city or intra-city).
+     *
+     * @param parcelId The ID of the parcel to be picked up.
+     * @return The updated Parcel entity after it has been picked up.
+     */
+    @Override
+    @Transactional
+    public Parcel pickUpParcelFromStorage(Long parcelId) {
+        // Step 1: Authenticate the driver
+        Driver driver = driverService.getAuthenticatedDriver();
+
+        // Step 2: Retrieve the parcel using the provided parcelId
+        Parcel parcel = parcelRepository.findById(parcelId)
+                .orElseThrow(() -> new TendrilExExceptionHandler(HttpStatus.NOT_FOUND,
+                        "Parcel not found with id: " + parcelId));
+
+        // Step 3: Ensure the parcel is assigned to the authenticated driver
+        if (parcel.getDriver() == null || !parcel.getDriver().equals(driver)) {
+            throw new TendrilExExceptionHandler(HttpStatus.FORBIDDEN, "Parcel is not assigned to this driver.");
+        }
+
+        // Step 4: Ensure the parcel is an inter-city parcel
+        if (parcel.getParcelType() != ParcelType.INTER_CITY) {
+            throw new TendrilExExceptionHandler(HttpStatus.BAD_REQUEST,
+                    "Only inter-city parcels can be picked up from storage.");
+        }
+
+        // Step 5: Determine the current status and update it accordingly
+        if (parcel.getStatus().equals(ParcelStatus.AWAITING_INTER_CITY_PICKUP)) {
+            // The parcel is at the departure storage, ready to be picked up by an
+            // inter-city driver
+            parcel.setStatus(ParcelStatus.IN_TRANSIT_TO_DESTINATION_STORAGE);
+
+        } else if (parcel.getStatus().equals(ParcelStatus.AWAITING_FINAL_DELIVERY)) {
+            // The parcel has arrived at the destination storage and is ready for final
+            // delivery
+            parcel.setStatus(ParcelStatus.IN_TRANSIT_TO_RECIPIENT);
+        } else {
+            throw new TendrilExExceptionHandler(HttpStatus.BAD_REQUEST, "Parcel is not in a valid state for pickup.");
+        }
+
+        // Step 6: Clear the storage reference from the parcel after pickup
+        parcel.setStorage(null);
+
+        // Step 7: Save the updated parcel and return it
+        return parcelRepository.save(parcel);
+    }
+
 }
+
+/*
+ * 
+ * I have an issue! I designed the logic for batch assignment such that both
+ * inter-parcels and intra-parcels within the city are initially assigned to
+ * intra-city drivers where intra-city parcels are delivered directly to their
+ * recipients within the city, while inter-city parcels are first sent to the
+ * city’s departure storage. From there, they are handed over to an inter-city
+ * driver who transports them to the destination city’s storage facility. Once
+ * there, an intra-city driver in the destination city is assigned to deliver
+ * the parcel to the recipient’s home address or pickup point, if selected.
+ * 
+ * so the issue lies somewhere in using the parcel type
+ * I explicity specified that all parcels statuses are updated
+ * to AWAITING_INTRA_CITY_PICKUP after they are left at the cabinets during
+ * dropOffParcelInCabinet by the
+ * sender
+ * 
+ * Status vs. Type
+ */
+
+/*
+ * 
+ * THE WORKFLOW
+ * 
+ */

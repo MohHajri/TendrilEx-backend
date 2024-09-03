@@ -18,7 +18,6 @@ import org.locationtech.jts.geom.Point;
 
 import com.fasterxml.jackson.annotation.JsonManagedReference;
 
-
 @Entity
 @Table(name = "parcel_lockers")
 @NoArgsConstructor
@@ -35,11 +34,11 @@ public class ParcelLocker {
     @Column(nullable = false)
     private String name;
 
-    @Column(name = "location_point", columnDefinition = "geometry(Point,4326)")
-    private Point lockerPoint;
+    @Column(name = "geo_location", columnDefinition = "geometry(Point,4326)")
+    private Point geoLocation;
 
-    @OneToMany(mappedBy = "lockerLocation")
+    @OneToMany(mappedBy = "parcelLocker")
     @JsonManagedReference
     private Set<Cabinet> cabinets;
-    
+
 }
