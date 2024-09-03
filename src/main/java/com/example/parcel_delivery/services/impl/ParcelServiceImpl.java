@@ -101,13 +101,12 @@ public class ParcelServiceImpl implements ParcelService {
                 isRecipientRegistered = true;
             }
 
-            // Temporary comments this off
-            // // Step 4: Geocode the sender's address to get location
-            // CustomerLocationReqDTO senderLocationDTO = new CustomerLocationReqDTO(
-            // parcelReqDTO.getSenderAddress(), parcelReqDTO.getSenderPostcode(),
-            // parcelReqDTO.getSenderCity());
-            // Point senderLocation = locationUtil.geocodeLocation(senderLocationDTO);
-            // sender.getUser().setUserPoint(senderLocation);
+            // Step 4: Geocode the sender's address to get location
+            CustomerLocationReqDTO senderLocationDTO = new CustomerLocationReqDTO(
+                    parcelReqDTO.getSenderAddress(), parcelReqDTO.getSenderPostcode(),
+                    parcelReqDTO.getSenderCity());
+            Point senderLocation = locationUtil.geocodeLocation(senderLocationDTO);
+            sender.getUser().setUserPoint(senderLocation);
 
             // Step 5: Determine the Parcel Type (Intra-city or Inter-city)
             ParcelType parcelType = determineParcelType(parcelReqDTO.getSenderCity(), parcelReqDTO, recipient);
@@ -459,15 +458,6 @@ public class ParcelServiceImpl implements ParcelService {
     @Override
     @Transactional(propagation = Propagation.REQUIRES_NEW) // why? to ensure that the transaction commits after
                                                            // processing each page. the status changes
-    // public List<Parcel> findParcelsForDriverAssignment(int page, int size) {
-    // Pageable pageable = PageRequest.of(page, size);
-    // // Fetch parcels that are either awaiting intra-city or inter-city pickup
-    // Page<Parcel> parcelPage = parcelRepository.findByStatusIn(
-    // List.of(ParcelStatus.AWAITING_INTRA_CITY_PICKUP,
-    // ParcelStatus.AWAITING_INTER_CITY_PICKUP),
-    // pageable);
-    // return parcelPage.getContent();
-    // }
 
     public List<Parcel> findParcelsForDriverAssignment(int page, int size) {
         Pageable pageable = PageRequest.of(page, size);
@@ -917,29 +907,3 @@ public class ParcelServiceImpl implements ParcelService {
     }
 
 }
-
-/*
- * 
- * I have an issue! I designed the logic for batch assignment such that both
- * inter-parcels and intra-parcels within the city are initially assigned to
- * intra-city drivers where intra-city parcels are delivered directly to their
- * recipients within the city, while inter-city parcels are first sent to the
- * city’s departure storage. From there, they are handed over to an inter-city
- * driver who transports them to the destination city’s storage facility. Once
- * there, an intra-city driver in the destination city is assigned to deliver
- * the parcel to the recipient’s home address or pickup point, if selected.
- * 
- * so the issue lies somewhere in using the parcel type
- * I explicity specified that all parcels statuses are updated
- * to AWAITING_INTRA_CITY_PICKUP after they are left at the cabinets during
- * dropOffParcelInCabinet by the
- * sender
- * 
- * Status vs. Type
- */
-
-/*
- * 
- * THE WORKFLOW
- * 
- */

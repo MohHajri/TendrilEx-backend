@@ -84,11 +84,16 @@ public class BatchParcelAssignmentServiceImpl implements BatchParcelAssignmentSe
 
     private void assignParcelsToIntraDrivers(List<Parcel> parcels, String city) {
 
-        // STEP1: i will access the parcels that are ready to be assigned to intra
-        // drivers
-        // which are inter parcels of status(AWAITING_DEPARTURE_STORAGE_PICKUP and
-        // AWAITING_FINAL_DELIVERY) . And intra parcels of
-        // status(AWAITING_INTRA_CITY_PICKUP)
+        /*
+         * STEP1: access the parcels that are ready to be assigned to intra
+         * drivers
+         * which are inter parcels of status:
+         * - AWAITING_DEPARTURE_STORAGE_PICKUP
+         * - AWAITING_FINAL_DELIVERY)
+         * 
+         * And intra parcels of status:
+         * - AWAITING_INTRA_CITY_PICKUP)
+         */
 
         List<Parcel> parcelsForIntraDriver = parcels.stream()
                 .filter(parcel -> parcel.getStatus() == ParcelStatus.AWAITING_DEPARTURE_STORAGE_PICKUP
@@ -100,10 +105,14 @@ public class BatchParcelAssignmentServiceImpl implements BatchParcelAssignmentSe
                                 .getParcelType() == ParcelType.INTRA_CITY)
                 .collect(Collectors.toList());
 
-        // STEP 2. Get the available intra drivers
+        /*
+         * STEP 2. Get the available intra drivers
+         * 
+         */
         List<Driver> availableIntraDrivers = driverService.getActiveAvailableIntraCityDrivers(city);
-
-        // STEP 3. DO THE SENARIOS
+        /*
+         * STEP 3. Assign.
+         */
 
         /**
          * Scenario 1: High Volume Assignment
@@ -151,6 +160,7 @@ public class BatchParcelAssignmentServiceImpl implements BatchParcelAssignmentSe
          * delays.
          * It's a fallback. it happens when the total number of parcels available on a
          * given day is less than the threshold.
+         * these parcels will be assigned to the first available one driver
          * 
          */
         /**
@@ -159,20 +169,13 @@ public class BatchParcelAssignmentServiceImpl implements BatchParcelAssignmentSe
          */
         if (!parcelsForIntraDriver.isEmpty() && parcelsForIntraDriver.size() < INTRA_CITY_PARCELS_PER_DRIVER) {
 
-            // assgin these parcels that are under the threshold to ONE availabe intra
-            // driver that is of course not assigned to any parcels
-
-            // ALSO
-            // this method will supposedly run after the above two , so in case of any
-            // remaining parcel inside the list of parcels , assign them to ONE available
-            // intra driver who of course has not been assigned any parcels before
-
             Driver firstDriver = availableIntraDrivers.get(0);
 
             // assgin all the parcels in the list to that driver
             if (!driverService.hasParcelsAssigned(firstDriver)) {
 
                 for (int i = 0; i <= parcelsForIntraDriver.size(); i++) {
+
                     Parcel parcel = parcelsForIntraDriver.remove(0);
 
                     parcel.setDriver(firstDriver);
@@ -192,18 +195,24 @@ public class BatchParcelAssignmentServiceImpl implements BatchParcelAssignmentSe
 
     private void assignParcelsToInterDrivers(List<Parcel> parcels, String city) {
 
-        // STEP 1. i will access the parcels that are ready to be assigned to inter
-        // drivers
-        // which are inter parcels of a status(AWAITING_INTER_CITY_PICKUP)
+        /*
+         * STEP 1. i will access the parcels that are ready to be assigned to inter
+         * drivers
+         * which are inter parcels of a status(AWAITING_INTER_CITY_PICKUP)
+         */
 
         List<Parcel> parcelsForInterDriver = parcels.stream()
+
                 .filter(parcel -> parcel.getStatus() == ParcelStatus.AWAITING_INTER_CITY_PICKUP
+
                         && parcel.getParcelType() == ParcelType.INTER_CITY)
+
                 .collect(Collectors.toList());
 
-        // STEP 2. here i will group these parcels by their destination city for some
-        // reason(
-        // for a smoonther handling of retunr parcels)
+        /*
+         * STEP 2. group these parcels by their destination city for some
+         * reason( for a smoonther handling of retunrn parcels)
+         */
 
         // inter city parcels are grouped by destionation
         Map<String, List<Parcel>> interCityParcelsByDestination = parcelsForInterDriver.stream()
@@ -216,7 +225,10 @@ public class BatchParcelAssignmentServiceImpl implements BatchParcelAssignmentSe
 
                                 : parcel.getUnregisteredRecipientCity()));
 
-        // STEP 3. Get the available inter drivers
+        /*
+         * STEP 3. Get the available inter drivers
+         * 
+         */
         List<Driver> availableInterDrivers = driverService.getActiveAvailableInterCityDrivers(city);
 
         // run for every destination city
@@ -240,12 +252,14 @@ public class BatchParcelAssignmentServiceImpl implements BatchParcelAssignmentSe
                  * 
                  */
                 if (!interCityParcelsByDestination.isEmpty()
+
                         && interCityParcelsByDestination.size() < INTER_CITY_PARCELS_PER_DRIVER * 2) {
 
                     // assgin outgoing parcels
                     for (int i = 0; i < INTER_CITY_PARCELS_PER_DRIVER; i++) {
 
                         Parcel parcel = outgoingParcels.remove(0);
+
                         parcel.setDriver(driver);
 
                         parcel.setStatus(ParcelStatus.ASSIGNED_TO_INTER_CITY_DRIVER);
@@ -254,7 +268,7 @@ public class BatchParcelAssignmentServiceImpl implements BatchParcelAssignmentSe
 
                     }
 
-                    // assgin return ones
+                    // assgin return parcels
                     for (int i = 0; i < INTER_CITY_PARCELS_PER_DRIVER; i++) {
 
                         Parcel parcel = returnParcels.remove(0);
@@ -266,37 +280,31 @@ public class BatchParcelAssignmentServiceImpl implements BatchParcelAssignmentSe
 
                     }
 
-                    // check if driver is loaded
+                    // check if driver is loaded by now
                     if (parcelService.countParcelsByDriver(driver) >= 2
                             * INTER_CITY_PARCELS_PER_DRIVER) {
 
-                        driverService.updateDriverAvailability(driver, false); // Mark
-                                                                               // driver as
-                                                                               // unavailable
+                        driverService.updateDriverAvailability(driver, false);
 
                         break; // Move to the next driver
                     }
 
                 }
 
-                // Scenario 2 and 3: Assign any remaining parcels
-                // same manner we should be able to check if the number of parcels is less
-                // than
-                // the threshold of inter drivers which is in this case can be checked as a
-                // total for the outgoing and return. so if there are less the total of the
-                // two
-                // thresholds so we should be able to go the following
                 /*
-                 * - assgin these parcels ( both the outgoing and return) to one driver.
-                 * senario 2 means when the batch runs and finds out that there is few
-                 * parcels
-                 * at that day so it should assign these few parcels ( of wich the total is
-                 * under the threshold x2)
-                 * 
-                 * so technically i guess that would work as a senario number 3 as well
+                 * Scenario 2 & 3:
+                 * if there are only few inter parcels ( fewer than the threshold of inter
+                 * parcels multiplied by two), then we will assgin all of these few parcels into
+                 * one driver
+                 * this works or gets triggered in two cases:
+                 * - when there are only few inter parcels at that city during that day -->
+                 * Scenario 2
+                 * - when, at the end of the first scenario, there are few parcels left then
+                 * they are assgined here
                  */
                 if (!parcelsForInterDriver.isEmpty() && parcelsForInterDriver
-                        .size() < INTRA_CITY_PARCELS_PER_DRIVER * 2) {
+
+                        .size() < INTER_CITY_PARCELS_PER_DRIVER * 2) {
 
                     Driver firstDriver = availableInterDrivers.get(0);
 
@@ -306,6 +314,7 @@ public class BatchParcelAssignmentServiceImpl implements BatchParcelAssignmentSe
                         for (int i = 0; i < outgoingParcels.size(); i++) {
 
                             Parcel parcel = outgoingParcels.remove(0);
+
                             parcel.setDriver(firstDriver);
 
                             parcel.setStatus(ParcelStatus.ASSIGNED_TO_INTER_CITY_DRIVER);
@@ -318,6 +327,7 @@ public class BatchParcelAssignmentServiceImpl implements BatchParcelAssignmentSe
                         for (int i = 0; i < returnParcels.size(); i++) {
 
                             Parcel parcel = returnParcels.remove(0);
+
                             parcel.setDriver(firstDriver);
 
                             parcel.setStatus(ParcelStatus.ASSIGNED_TO_INTER_CITY_DRIVER);
