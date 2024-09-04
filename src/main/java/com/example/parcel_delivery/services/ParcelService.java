@@ -65,4 +65,6 @@ public interface ParcelService {
 
     Parcel pickUpParcelFromStorage(Long parcelId);
 
+    Long countActiveParcelsByDriver(Driver driver);
+
 }

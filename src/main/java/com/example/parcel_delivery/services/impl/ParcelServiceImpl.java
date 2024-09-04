@@ -448,6 +448,16 @@ public class ParcelServiceImpl implements ParcelService {
     }
 
     /**
+     * Counts the number of active parcels assigned to a driver.
+     *
+     * @param driver The driver whose active parcels are being counted.
+     * @return The number of active parcels assigned to the driver.
+     */
+    public Long countActiveParcelsByDriver(Driver driver) {
+        return parcelRepository.countActiveParcelsByDriver(driver);
+    }
+
+    /**
      * Retrieves all unassigned parcels both ( inter and intra parcels)
      * 
      * @param page
@@ -610,8 +620,14 @@ public class ParcelServiceImpl implements ParcelService {
             // Store the parcel in departure storage (sender's city)
             Storage storage = storageService.findOrCreateStorageForCity(parcel.getSender().getUser().getCity());
             parcel.setStorage(storage);
-            // parcel.setStatus(ParcelStatus.DELIVERED_TO_DEPARTURE_STORAGE);
             parcel.setStatus(ParcelStatus.AWAITING_INTER_CITY_PICKUP);
+            parcel.setDriver(null); // intra driver is no longer associated with this parcel
+
+            // Check if the driver has any remaining active parcels and update availability
+            // if done
+            if (countActiveParcelsByDriver(driver) == 0) {
+                driverService.updateDriverAvailability(driver, true);
+            }
 
             return parcelRepository.save(parcel);
 
@@ -663,7 +679,17 @@ public class ParcelServiceImpl implements ParcelService {
             parcel.setStatus(ParcelStatus.AWAITING_FINAL_DELIVERY); // New status indicating it's ready for final
                                                                     // delivery
 
-            // Step 7: For inter-city parcels, associate the held cabinet and generate the
+            // Step 7: disassociate the parcel from the driver
+            parcel.setDriver(null); // inter driver is no longer associated with this parcel
+
+            // Step 8: Check if the driver has any remaining active parcels and update
+            // availability
+            // if done
+            if (countActiveParcelsByDriver(driver) == 0) {
+                driverService.updateDriverAvailability(driver, true);
+            }
+
+            // Step 9: For inter-city parcels, associate the held cabinet and generate the
             // recipient's transaction code
             if (parcel.getDeliverToRecipientLocker()) {
                 Integer recipientTransactionCode = transactionCodeGenerator.generateTransactionCode();
@@ -719,6 +745,15 @@ public class ParcelServiceImpl implements ParcelService {
         try {
             // Update the parcel status to indicate it has been delivered to the recipient
             parcel.setStatus(ParcelStatus.DELIVERED_TO_RECIPIENT);
+
+            parcel.setDriver(null); // intra driver is no longer associated with this parcel
+
+            // Check if the driver has any remaining active parcels and update
+            // availability
+            // if done
+            if (countActiveParcelsByDriver(driver) == 0) {
+                driverService.updateDriverAvailability(driver, true);
+            }
             parcelRepository.save(parcel);
 
             // Notify the recipient of the delivery
@@ -776,19 +811,26 @@ public class ParcelServiceImpl implements ParcelService {
             throw new TendrilExExceptionHandler(HttpStatus.BAD_REQUEST, "Transaction code has expired");
         }
 
-        // Mark the parcel as awaiting the appropriate driver assignment based on its
-        // type
-        if (parcel.getParcelType() == ParcelType.INTRA_CITY) {
-            parcel.setStatus(ParcelStatus.AWAITING_INTRA_CITY_PICKUP);
-        } else if (parcel.getParcelType() == ParcelType.INTER_CITY) {
-            // parcel.setStatus(ParcelStatus.AWAITING_INTRA_CITY_PICKUP); // Intra-city
-            // driver will first take it to
-            // departure storage
-            parcel.setStatus(ParcelStatus.AWAITING_DEPARTURE_STORAGE_PICKUP);
+        try {
 
+            // Mark the parcel as awaiting the appropriate driver assignment based on its
+            // type
+            if (parcel.getParcelType() == ParcelType.INTRA_CITY) {
+                parcel.setStatus(ParcelStatus.AWAITING_INTRA_CITY_PICKUP);
+            } else if (parcel.getParcelType() == ParcelType.INTER_CITY) {
+                // parcel.setStatus(ParcelStatus.AWAITING_INTRA_CITY_PICKUP); // Intra-city
+                // driver will first take it to
+                // departure storage
+                parcel.setStatus(ParcelStatus.AWAITING_DEPARTURE_STORAGE_PICKUP);
+
+            }
+            // Save the updated parcel
+            return parcelRepository.save(parcel);
+        } catch (Exception e) {
+            // Handle any exceptions that occur during the direct delivery process
+            throw new TendrilExExceptionHandler(HttpStatus.INTERNAL_SERVER_ERROR,
+                    "Failed to drop off parcel in cabinet: " + e.getMessage());
         }
-        // Save the updated parcel
-        return parcelRepository.save(parcel);
     }
 
     /**
@@ -842,17 +884,34 @@ public class ParcelServiceImpl implements ParcelService {
                     "Parcel is not available for delivery to the recipient's pickup point");
         }
 
-        // Proceed with delivery to the recipient's pickup point
+        try {
 
-        // Step 8: Update the parcel status to indicate it has been delivered to the
-        // recipient's locker
-        parcel.setStatus(ParcelStatus.DELIVERED_TO_RECIPIENT_LOCKER);
+            // Proceed with delivery to the recipient's pickup point
 
-        // Step 9: Mark the recipient's transaction code as inactive after delivery
-        parcel.setRecipientTransactionCodeActive(false);
+            // Step 8: Update the parcel status to indicate it has been delivered to the
+            // recipient's locker
+            parcel.setStatus(ParcelStatus.DELIVERED_TO_RECIPIENT_LOCKER);
 
-        // Step 10: Save the updated parcel status and details
-        return parcelRepository.save(parcel);
+            // Step 9: disassociate the parcel from the driver
+            parcel.setDriver(null); // intra driver is no longer associated with this parcel
+
+            // Step 10: Check if the driver has any remaining active parcels and update
+            // availability
+            // if done
+            if (countActiveParcelsByDriver(driver) == 0) {
+                driverService.updateDriverAvailability(driver, true);
+            }
+
+            // Step 11: Mark the recipient's transaction code as inactive after delivery
+            parcel.setRecipientTransactionCodeActive(false);
+
+            // Step 12: Save the updated parcel status and details
+            return parcelRepository.save(parcel);
+        } catch (Exception e) {
+            // Handle any exceptions that occur during the direct delivery process
+            throw new TendrilExExceptionHandler(HttpStatus.INTERNAL_SERVER_ERROR,
+                    "Failed to deliver parcel to recipient pickup point: " + e.getMessage());
+        }
     }
 
     /**
@@ -885,25 +944,39 @@ public class ParcelServiceImpl implements ParcelService {
                     "Only inter-city parcels can be picked up from storage.");
         }
 
-        // Step 5: Determine the current status and update it accordingly
-        if (parcel.getStatus().equals(ParcelStatus.AWAITING_INTER_CITY_PICKUP)) {
-            // The parcel is at the departure storage, ready to be picked up by an
-            // inter-city driver
-            parcel.setStatus(ParcelStatus.IN_TRANSIT_TO_DESTINATION_STORAGE);
+        try {
 
-        } else if (parcel.getStatus().equals(ParcelStatus.AWAITING_FINAL_DELIVERY)) {
-            // The parcel has arrived at the destination storage and is ready for final
-            // delivery
-            parcel.setStatus(ParcelStatus.IN_TRANSIT_TO_RECIPIENT);
-        } else {
-            throw new TendrilExExceptionHandler(HttpStatus.BAD_REQUEST, "Parcel is not in a valid state for pickup.");
+            // Step 5: Determine the current status and update it accordingly
+            if (parcel.getStatus().equals(ParcelStatus.AWAITING_INTER_CITY_PICKUP)) {
+                // The parcel is at the departure storage, ready to be picked up by an
+                // inter-city driver
+                parcel.setStatus(ParcelStatus.IN_TRANSIT_TO_DESTINATION_STORAGE);
+
+            } else if (parcel.getStatus().equals(ParcelStatus.AWAITING_FINAL_DELIVERY)) {
+                // The parcel has arrived at the destination storage and is ready for final
+                // delivery
+                parcel.setStatus(ParcelStatus.IN_TRANSIT_TO_RECIPIENT);
+            } else {
+                throw new TendrilExExceptionHandler(HttpStatus.BAD_REQUEST,
+                        "Parcel is not in a valid state for pickup.");
+            }
+
+            // Step 6: Clear the storage reference from the parcel after pickup
+            parcel.setStorage(null);
+
+            // Step 7: Save the updated parcel and return it
+            return parcelRepository.save(parcel);
+        } catch (Exception e) {
+            // Handle any exceptions that occur during the direct delivery process
+            throw new TendrilExExceptionHandler(HttpStatus.INTERNAL_SERVER_ERROR,
+                    "Failed to pick up parcel from storage: " + e.getMessage());
         }
-
-        // Step 6: Clear the storage reference from the parcel after pickup
-        parcel.setStorage(null);
-
-        // Step 7: Save the updated parcel and return it
-        return parcelRepository.save(parcel);
     }
 
 }
+
+/*
+ * Setting driver refernce to null after delivery?
+ * checking if a driver has assgined parcels when assignign the batches?
+ * checking availability?
+ */

@@ -70,4 +70,7 @@ public interface ParcelRepo extends JpaRepository<Parcel, Long> {
                         @Param("status") ParcelStatus status,
                         Pageable pageable);
 
+        @Query("SELECT p FROM Parcel p WHERE p.driver.id = :driverId AND p.status IN (IN_TRANSIT_TO_RECIPIENT, IN_TRANSIT_TO_DEPARTURE_STORAGE, IN_TRANSIT_TO_DESTINATION_STORAGE)")
+        Long countActiveParcelsByDriver(@Param("driver") Driver driver);
+
 }

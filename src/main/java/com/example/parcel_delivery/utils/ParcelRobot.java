@@ -199,7 +199,7 @@ public class ParcelRobot {
             throw new TendrilExExceptionHandler(HttpStatus.INTERNAL_SERVER_ERROR, "Unknown robot user");
         }
 
-        // 30% chance of switching the city even if they match, to encourage some
+        // 50% chance of switching the city even if they match, to encourage some
         // INTER_CITY parcels
         if (senderCity.equals(customer.getUser().getCity()) && random.nextDouble() < 0.5) {
             senderCity = senderCity.equals("Helsinki") ? "Oulu" : "Helsinki"; // Switch city with 50% probability

@@ -30,7 +30,10 @@ import lombok.Setter;
 import lombok.ToString;
 
 @Entity
-@Table(name = "parcels", indexes = { @Index(name = "idx_parcel_status", columnList = "status") })
+@Table(name = "parcels", indexes = {
+        @Index(name = "idx_parcel_status", columnList = "status"),
+        @Index(name = "idx_parcel_driver_status", columnList = "driver_id, status")
+})
 @NoArgsConstructor
 @AllArgsConstructor
 @Getter
