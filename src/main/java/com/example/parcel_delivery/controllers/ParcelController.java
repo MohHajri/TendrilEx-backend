@@ -206,7 +206,7 @@ public class ParcelController {
                 return ResponseEntity.ok(dtoList);
         }
 
-        // Endoint to retrieves inter-city parcels that are currently in a specific
+        // Endoint to retrieve inter-city parcels that are currently in a specific
         // storage
         @GetMapping("/storage/{storageId}/inter-city")
         public ResponseEntity<List<ParcelResDTO>> getInterCityParcelsInStorage(@PathVariable Long storageId) {
@@ -216,6 +216,28 @@ public class ParcelController {
                                 .collect(Collectors.toList());
 
                 return ResponseEntity.ok(dtoList);
+        }
+
+        // Endpoint to pick up a parcel from a storage . it is used by either the intra
+        // driver or the inter driver
+        @PostMapping("/storage/pickup/{parcelId}")
+        public ResponseEntity<ParcelResDTO> pickUpParcelFromStorage(@PathVariable Long parcelId) {
+                return ResponseEntity
+                                .ok(parcelMapper
+                                                .toParcelResDTO(parcelService
+                                                                .pickUpParcelFromStorage(parcelId)));
+        }
+
+        // Endpoint to deliver a parcel to a recipient pickup point by the intra driver
+        @PostMapping("/recipient/locker/deliver/{parcelId}/{transactionCode}")
+        public ResponseEntity<ParcelResDTO> deliverToRecipientPickupPoint(@PathVariable Long parcelId,
+                        @PathVariable Integer transactionCode) {
+                return ResponseEntity
+                                .ok(parcelMapper
+                                                .toParcelResDTO(parcelService
+                                                                .deliverToRecipientPickupPoint(parcelId,
+                                                                                transactionCode)));
+
         }
 
 }

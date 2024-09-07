@@ -57,7 +57,7 @@ public interface ParcelRepo extends JpaRepository<Parcel, Long> {
         Long countByStatus(ParcelStatus status);
 
         @Query("SELECT p FROM Parcel p WHERE p.status IN :statuses")
-        Page<Parcel> findByStatusIn(@Param("statuses") List<ParcelStatus> statuses, Pageable pageable);
+        List<Parcel> findByStatusIn(@Param("statuses") List<ParcelStatus> statuses);
 
         Optional<Parcel> findByIdAndDriverId(Long id, Long driverId);
 
@@ -65,12 +65,18 @@ public interface ParcelRepo extends JpaRepository<Parcel, Long> {
 
         List<Parcel> findByStorageIdAndParcelType(Long storageId, ParcelType intraCity);
 
-        @Query("SELECT p FROM Parcel p WHERE p.storage.city = :city AND p.status = :status")
-        List<Parcel> findParcelsByCityAndStatus(@Param("city") String city,
-                        @Param("status") ParcelStatus status,
-                        Pageable pageable);
+        // @Query("SELECT p FROM Parcel p WHERE p.storage.city = :city AND p.status =
+        // :status")
+        // List<Parcel> findParcelsByCityAndStatus(@Param("city") String city,
+        // @Param("status") ParcelStatus status,
+        // Pageable pageable);
+        @Query("SELECT p FROM Parcel p WHERE p.storage.city = :currentCity AND p.status = :status " +
+                        "AND p.sender.user.city = :originCity")
+        List<Parcel> findParcelsForReturnTrip(@Param("currentCity") String currentCity,
+                        @Param("originCity") String originCity,
+                        @Param("status") ParcelStatus status);
 
-        @Query("SELECT p FROM Parcel p WHERE p.driver.id = :driverId AND p.status IN (IN_TRANSIT_TO_RECIPIENT, IN_TRANSIT_TO_DEPARTURE_STORAGE, IN_TRANSIT_TO_DESTINATION_STORAGE)")
+        @Query("SELECT COUNT(p) FROM Parcel p WHERE p.driver = :driver AND p.status IN (IN_TRANSIT_TO_RECIPIENT, IN_TRANSIT_TO_DEPARTURE_STORAGE, IN_TRANSIT_TO_DESTINATION_STORAGE)")
         Long countActiveParcelsByDriver(@Param("driver") Driver driver);
 
 }

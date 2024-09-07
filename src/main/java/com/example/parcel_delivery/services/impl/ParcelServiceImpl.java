@@ -469,23 +469,18 @@ public class ParcelServiceImpl implements ParcelService {
     @Transactional(propagation = Propagation.REQUIRES_NEW) // why? to ensure that the transaction commits after
                                                            // processing each page. the status changes
 
-    public List<Parcel> findParcelsForDriverAssignment(int page, int size) {
-        Pageable pageable = PageRequest.of(page, size);
-
-        // Fetch parcels that are awaiting various stages of intra-city or inter-city
-        // pickup
-        Page<Parcel> parcelPage = parcelRepository.findByStatusIn(
+    public List<Parcel> findParcelsForDriverAssignment() {
+        // Fetch all parcels that are awaiting various stages of intra-city or
+        return parcelRepository.findByStatusIn(
                 List.of(
                         ParcelStatus.AWAITING_INTRA_CITY_PICKUP, // For intra-city deliveries
                         ParcelStatus.AWAITING_DEPARTURE_STORAGE_PICKUP, // For inter-city parcels waiting for pickup to
-                                                                        // storage by intra-city delivers
+                                                                        // storage by intra-city drivers
                         ParcelStatus.AWAITING_INTER_CITY_PICKUP, // For inter-city parcels waiting for pickup by
                                                                  // inter-city drivers
-                        ParcelStatus.AWAITING_FINAL_DELIVERY // New status for inter parcels ready for final delivery in
+                        ParcelStatus.AWAITING_FINAL_DELIVERY // For inter parcels ready for final delivery in the
                                                              // destination city by intra-city drivers
-                ), pageable);
-
-        return parcelPage.getContent();
+                ));
     }
 
     /**
@@ -498,9 +493,14 @@ public class ParcelServiceImpl implements ParcelService {
      * @return A list of parcels ready for a return trip.
      */
     @Override
-    public List<Parcel> getParcelsForReturnTrip(String city, Pageable pageable) {
-        return parcelRepository.findParcelsByCityAndStatus(city, ParcelStatus.AWAITING_INTER_CITY_PICKUP, pageable);
+    // public List<Parcel> getParcelsForReturnTrip(String city, Pageable pageable) {
+    // return parcelRepository.findParcelsByCityAndStatus(city,
+    // ParcelStatus.AWAITING_INTER_CITY_PICKUP, pageable);
 
+    // }
+    public List<Parcel> getParcelsForReturnTrip(String currentCity, String originCity) {
+        return parcelRepository.findParcelsForReturnTrip(currentCity, originCity,
+                ParcelStatus.AWAITING_INTER_CITY_PICKUP);
     }
 
     /**
@@ -627,6 +627,7 @@ public class ParcelServiceImpl implements ParcelService {
             // if done
             if (countActiveParcelsByDriver(driver) == 0) {
                 driverService.updateDriverAvailability(driver, true);
+
             }
 
             return parcelRepository.save(parcel);
@@ -687,6 +688,7 @@ public class ParcelServiceImpl implements ParcelService {
             // if done
             if (countActiveParcelsByDriver(driver) == 0) {
                 driverService.updateDriverAvailability(driver, true);
+
             }
 
             // Step 9: For inter-city parcels, associate the held cabinet and generate the
@@ -753,6 +755,7 @@ public class ParcelServiceImpl implements ParcelService {
             // if done
             if (countActiveParcelsByDriver(driver) == 0) {
                 driverService.updateDriverAvailability(driver, true);
+
             }
             parcelRepository.save(parcel);
 
@@ -900,6 +903,7 @@ public class ParcelServiceImpl implements ParcelService {
             // if done
             if (countActiveParcelsByDriver(driver) == 0) {
                 driverService.updateDriverAvailability(driver, true);
+
             }
 
             // Step 11: Mark the recipient's transaction code as inactive after delivery
@@ -974,9 +978,3 @@ public class ParcelServiceImpl implements ParcelService {
     }
 
 }
-
-/*
- * Setting driver refernce to null after delivery?
- * checking if a driver has assgined parcels when assignign the batches?
- * checking availability?
- */

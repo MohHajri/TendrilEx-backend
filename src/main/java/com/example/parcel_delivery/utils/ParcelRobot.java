@@ -27,7 +27,9 @@ import org.springframework.http.HttpStatus;
 import java.util.List;
 import java.util.HashSet;
 import java.util.Set;
-
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.Random;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -80,10 +82,33 @@ public class ParcelRobot {
             // After parcel robot completes, trigger batch processing
             batchParcelAssignmentService.batchAssignParcels();
 
+            logger.info("Batch assignment triggered immediately after robot task.");
+
+            // Schedule the batch processing to run again after 2 minutes
+            scheduleBatchProcessingAfterDelay();
+
         } catch (Exception e) {
             throw new TendrilExExceptionHandler(HttpStatus.INTERNAL_SERVER_ERROR,
                     "Failed to start parcel robot: " + e.getMessage());
         }
+    }
+
+    /**
+     * Schedule the batch processing to run again after a 2-minute delay.
+     */
+    private void scheduleBatchProcessingAfterDelay() {
+        ScheduledExecutorService executorService = Executors.newSingleThreadScheduledExecutor();
+
+        // Schedule the batch assignment after a 2-minute delay
+        executorService.schedule(() -> {
+            logger.info("Running BatchParcelAssignmentService after a 2-minute delay...");
+            try {
+                batchParcelAssignmentService.batchAssignParcels();
+                logger.info("Batch assignment triggered after 2 minutes.");
+            } catch (Exception e) {
+                logger.severe("Failed to run batch parcel assignment after delay: " + e.getMessage());
+            }
+        }, 13, TimeUnit.MINUTES); // Change the delay duration here if needed
     }
 
     /**

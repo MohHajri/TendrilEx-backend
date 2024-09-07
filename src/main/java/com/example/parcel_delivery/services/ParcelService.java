@@ -2,8 +2,6 @@ package com.example.parcel_delivery.services;
 
 import java.util.List;
 
-import org.springframework.data.domain.Pageable;
-
 import com.example.parcel_delivery.models.dtos.requests.ParcelReqDTO;
 import com.example.parcel_delivery.models.entities.Driver;
 import com.example.parcel_delivery.models.entities.Parcel;
@@ -23,7 +21,7 @@ public interface ParcelService {
 
     List<Parcel> getParcelsByRecipientId(Long id);
 
-    List<Parcel> findParcelsForDriverAssignment(int page, int size);
+    List<Parcel> findParcelsForDriverAssignment();
 
     Long countParcelsByDriver(Driver driver);
 
@@ -59,7 +57,7 @@ public interface ParcelService {
 
     List<Parcel> getInterCityParcelsInStorage(Long storageId);
 
-    List<Parcel> getParcelsForReturnTrip(String city, Pageable pageable);
+    List<Parcel> getParcelsForReturnTrip(String currentCity, String originCity);
 
     Parcel deliverToRecipientPickupPoint(Long parcelId, Integer recipientTransactionCode);
 
